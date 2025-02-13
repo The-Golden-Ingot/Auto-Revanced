@@ -123,7 +123,7 @@ revanced_dl(){
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	version="9.2.0"
-	url="https://lightroom.en.uptodown.com/android/download"
+	url="https://adobe-lightroom-mobile.en.uptodown.com/android/download"
 	url="https://dw.uptodown.com/dwn/$(req "$url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
 	req "$url" "lightroom-beta.apk"
 	patch "lightroom-beta" "revanced"
