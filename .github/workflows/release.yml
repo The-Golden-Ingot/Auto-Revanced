@@ -1,0 +1,12 @@
+# Add this to the release step to make tags unique
+- name: Create Release
+  uses: softprops/action-gh-release@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    tag_name: revanced-${{ github.run_id }}  # Unique tag using GitHub run ID
+    body: |
+      Automated ReVanced Build
+      Version: ${{ steps.vars.outputs.version }}
+    files: |
+      build/*.apk 
