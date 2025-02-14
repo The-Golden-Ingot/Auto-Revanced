@@ -28,6 +28,18 @@ dl_gh() {
     done
 }
 
+# Format version string to be compatible with APKMirror URLs
+format_version() {
+    local version=$1
+    
+    if [ -z "$version" ]; then
+        return 1
+    fi
+    
+    # Remove any whitespace and replace dots with hyphens
+    echo "$version" | tr -d ' ' | sed 's/\./-/g'
+}
+
 # APK Mirror download utilities
 get_apk() {
     local package_name=$1
