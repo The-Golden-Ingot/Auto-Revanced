@@ -174,14 +174,13 @@ dl_apk() {
                     req "$url" "$output"
                     if [[ -f "./download/$output" ]]; then
                         # Add URL validation checks
-                        if [[ "$url" != *"apkmirror.com/apk/"* ]]; then
-                            red_log "[-] Invalid download URL: $url"
-                            return 1
-                        fi
-                        # Add HTTP status check
                         local status_code=$(curl -sI -w "%{http_code}" "$url" -o /dev/null)
                         if [ "$status_code" -ne 200 ]; then
                             red_log "[-] Download failed with HTTP $status_code"
+                            return 1
+                        fi
+                        if [[ "$url" != *"apkmirror.com/apk/"* ]] || [[ "$url" == *"//[-]"* ]]; then
+                            red_log "[-] Malformed download URL: $url"
                             return 1
                         fi
                         return 0
@@ -385,12 +384,16 @@ split_arch() {
     [[ $5 == "Bundle" ]] && bundle_ext="apkm"
     
     if [ -f "./download/$1.$bundle_ext" ]; then
-        # Add bundle extraction logic
+        # Handle bundle extraction
         if [[ $5 == "Bundle" ]]; then
-            unzip "./download/$1.apkm" -d "./download/$1-bundle" || {
+            green_log "[+] Extracting Android Bundle..."
+            unzip -q "./download/$1.apkm" -d "./download/$1-bundle" || {
                 red_log "[-] Failed to extract bundle"
                 exit 1
             }
+            # Find the base APK in the bundle
+            local base_apk=$(find "./download/$1-bundle" -name "base.apk")
+            [ -f "$base_apk" ] && mv "$base_apk" "./download/$1.apk"
         fi
         green_log "[+] Splitting $1 to ${archs[i]}:"
         if [ -f "./download/$1.apk" ]; then
@@ -406,5 +409,8 @@ split_arch() {
             red_log "[-] Not found $1.apk"
             exit 1
         fi
+    else
+        red_log "[-] Missing APK file: ./download/$1.$bundle_ext"
+        exit 1
     fi
 }
