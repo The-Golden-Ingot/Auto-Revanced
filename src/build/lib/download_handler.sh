@@ -32,9 +32,20 @@ get_apk() {
         version_url="${base_url}/apk/$4/"
     fi
     
+    # Initialize url_regexp based on bundle type
+    local url_regexp
+    case "$bundle_type" in
+        "Bundle"|"Bundle_extract")
+            url_regexp='BUNDLE<\/span>'
+            ;;
+        *)
+            url_regexp='APK<\/span>'
+            ;;
+    esac
+
     # Download APK using dl_apk from utils.sh
     green_log "[+] Downloading APK..."
-    dl_apk "$version_url" "$output_name" "$url_regexp" "$bundle_type"
+    dl_apk "$version_url" "$url_regexp" "$output_name" "$bundle_type"
     
     # Handle bundle if needed
     if [ "$bundle_type" = "Bundle_extract" ] && [ -f "./download/${output_name}.apk" ]; then
