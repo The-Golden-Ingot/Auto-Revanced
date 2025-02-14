@@ -111,6 +111,26 @@ dl_apk() {
     local url=$1 regexp=$2 output=$3
     local max_attempts=3 attempt=0
     
+    # Use reference implementation's regex patterns
+    case "$4" in
+        "Bundle"|"Bundle_extract")
+            url_regexp='BUNDLE<\/span>'
+            ;;
+        *)
+            url_regexp='APK<\/span>'
+            ;;
+    esac
+
+    # Add architecture handling from reference
+    if [[ -n "$6" ]]; then
+        case "$5" in
+            arm64-v8a) url_regexp='arm64-v8a</div>[^@]*@\([^"]*\)' ;;
+            armeabi-v7a) url_regexp='armeabi-v7a</div>[^@]*@\([^"]*\)' ;;
+            x86) url_regexp='x86</div>[^@]*@\([^"]*\)' ;;
+            x86_64) url_regexp='x86_64</div>[^@]*@\([^"]*\)' ;;
+        esac
+    fi
+
     while [ $attempt -lt $max_attempts ]; do
         # Reference implementation's URL construction logic
         url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | \

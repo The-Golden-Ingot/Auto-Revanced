@@ -25,31 +25,16 @@ get_apk() {
     
     # Get version-specific URL if version is provided
     if [ -n "$version" ]; then
-        version_url="${base_url}/apk/${apkmirror_dlurl}/${app_type}-${version}-release/"
+        version_url="${base_url}/apk/$4/${app_type}-${version}-release/"
         green_log "[+] Attempting download of ${pkg_name} version: ${version}"
     else
-        # Get latest version URL
-        version_url="${base_url}/uploads/?appcategory=${pkg_name}"
+        # Get latest version URL using reference pattern
+        version_url="${base_url}/apk/$4/"
     fi
     
-    # Get download page URL using our robust get_download_url function
-    local download_url=$(get_download_url "$version_url")
-    if [ -z "$download_url" ]; then
-        red_log "[-] Failed to find download URL for ${pkg_name}"
-        return 1
-    fi
-    
-    # Get APK download link
-    local apk_url="${base_url}${download_url}"
-    local final_url=$(wget -qO- "$apk_url" | $pup 'a[href*="/download/"].downloadButton attr{href}' | head -n 1)
-    if [ -z "$final_url" ]; then
-        red_log "[-] Failed to get final download URL"
-        return 1
-    fi
-    
-    # Download APK
+    # Download APK using dl_apk from utils.sh
     green_log "[+] Downloading APK..."
-    download_file "${base_url}${final_url}" "${output_name}.apk"
+    dl_apk "$version_url" "$output_name" "$url_regexp" "$bundle_type"
     
     # Handle bundle if needed
     if [ "$bundle_type" = "Bundle_extract" ] && [ -f "./download/${output_name}.apk" ]; then
