@@ -88,47 +88,12 @@ dl_gh() {
 
 # Get patches list:
 get_patches_key() {
-	excludePatches=""
-	includePatches=""
-	excludeLinesFound=false
-	includeLinesFound=false
-	if [[ $(ls revanced-cli-*.jar) =~ revanced-cli-([0-9]+) ]]; then
-		num=${BASH_REMATCH[1]}
-		if [ $num -ge 5 ]; then
-			while IFS= read -r line1; do
-				excludePatches+=" -d \"$line1\""
-				excludeLinesFound=true
-			done < src/patches/$1/exclude-patches
-			while IFS= read -r line2; do
-				if [[ "$line2" == *"|"* ]]; then
-					patch_name="${line2%%|*}"
-					options="${line2#*|}"
-					includePatches+=" -e \"${patch_name}\" ${options}"
-				else
-					includePatches+=" -e \"$line2\""
-				fi
-				includeLinesFound=true
-			done < src/patches/$1/include-patches
-		else
-			while IFS= read -r line1; do
-				excludePatches+=" -e \"$line1\""
-				excludeLinesFound=true
-			done < src/patches/$1/exclude-patches
-			
-			while IFS= read -r line2; do
-				includePatches+=" -i \"$line2\""
-				includeLinesFound=true
-			done < src/patches/$1/include-patches
-		fi
+	local key_path="./src/patches/$1/patches.key"
+	if [ -f "$key_path" ]; then
+		echo "--keystore=\"$key_path\" --custom-keystore"
+	else
+		echo "--keystore=./src/_ks.keystore"  # Default fallback
 	fi
-	if [ "$excludeLinesFound" = false ]; then
-		excludePatches=""
-	fi
-	if [ "$includeLinesFound" = false ]; then
-		includePatches=""
-	fi
-	export excludePatches
-	export includePatches
 }
 
 #################################################
@@ -326,7 +291,7 @@ patch() {
 		if [ "$3" = inotia ]; then
 			setup_cli_env
 		fi
-		eval java -jar *cli*.jar $p$b $m$opt --out=./release/$1-$2.apk$excludePatches$includePatches --keystore=./src/$ks.keystore $pu$force $a./download/$1.apk
+		eval java -jar *cli*.jar $p$b $m$opt --out=./release/$1-$2.apk$excludePatches$includePatches $pu$force $a./download/$1.apk
   		unset version
 		unset lock_version
 		unset excludePatches
@@ -401,7 +366,7 @@ split_arch() {
             eval java -jar revanced-cli*.jar patch \
             -p *.rvp \
             $3 \
-            --keystore=./src/_ks.keystore --force \
+            $(get_patches_key $2) --force \
             --legacy-options=./src/options/$2.json $excludePatches$includePatches \
             --out=./release/$1-${archs[i]}-$2.apk\
             ./download/$1.apk
