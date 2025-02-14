@@ -41,7 +41,8 @@ build_lightroom() {
 	green_log "[+] Building Adobe Lightroom..."
 	
 	if [ ! -f "${DOWNLOAD_DIR}/lightroom.apk" ]; then
-		get_apk "com.adobe.lrmobile" "lightroom" "adobe-lightroom" "adobe/lightroom/adobe-lightroom"
+		get_apk "com.adobe.lrmobile" "lightroom" "adobe-lightroom" \
+				"adobe/lightroom/adobe-lightroom" "apk" ""
 	fi
 	
 	apply_patch_set "lightroom" "lightroom-revanced" "" "standard"
@@ -52,7 +53,8 @@ build_soundcloud() {
 	green_log "[+] Building SoundCloud..."
 	
 	if [ ! -f "${DOWNLOAD_DIR}/soundcloud.apk" ]; then
-		get_apk "com.soundcloud.android" "soundcloud" "soundcloud" "soundcloud/soundcloud"
+		get_apk "com.soundcloud.android" "soundcloud" "soundcloud" \
+				"soundcloud/soundcloud" "apk" ""
 	fi
 	
 	apply_patch_set "soundcloud" "soundcloud-revanced" "" "standard"

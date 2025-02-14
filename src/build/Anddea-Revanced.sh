@@ -37,7 +37,8 @@ build_youtube() {
     
     # Get base APK if not already downloaded
     if [ ! -f "${DOWNLOAD_DIR}/youtube-beta.apk" ]; then
-        get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube" "$version"
+        get_apk "com.google.android.youtube" "youtube-beta" "youtube" \
+                "google-inc/youtube/youtube" "Bundle_extract" "$version"
     fi
     
     # Apply patches with architecture-specific options

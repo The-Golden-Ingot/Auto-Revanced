@@ -38,7 +38,10 @@ get_apk() {
     local version=$6
     
     local attempt=0
-    local version=""
+    local base_apk
+    
+    # Set default app_type if not provided
+    [[ -z "$app_type" ]] && app_type="apk"
     
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
