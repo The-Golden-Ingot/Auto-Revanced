@@ -66,27 +66,42 @@ get_apk() {
                 sed -n "$((attempt + 1))p")
         fi
         
-        # Should preserve original version format when explicitly provided
-        if [[ -z $6 ]]; then  # Only format if version wasn't provided as parameter
-            version=$(format_version "$version")
+        # Don't format version if it's explicitly provided
+        if [[ -z "$6" ]]; then
+            version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
         fi
-        
-        [[ -z "$version" ]] && {
-            red_log "[-] Invalid version detected, skipping..."
-            ((attempt++))
-            continue
-        }
         
         green_log "[+] Attempting download of $apk_name version: $version"
         
-        # Fix URL construction to use apk_path correctly
-        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path-$version-release/")
+        # Fix URL construction to match APKMirror's format
+        local dl_url
+        if [[ "$app_type" == "Bundle" ]] || [[ "$app_type" == "Bundle_extract" ]]; then
+            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path/$apk_name-$version-release/")
+        else
+            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path/$apk_name-$version-release/")
+        fi
+        
+        green_log "[+] Trying URL: $dl_url"
         
         if [ -n "$dl_url" ]; then
-            download_file "$dl_url" "$output_name.apk" && {
+            if download_file "$dl_url" "$output_name.$([[ "$app_type" =~ Bundle ]] && echo "apkm" || echo "apk")"; then
                 green_log "[+] Successfully downloaded $output_name"
+                
+                # Handle bundle extraction if needed
+                if [[ "$app_type" == "Bundle_extract" ]]; then
+                    local bundle_dir="./download/$(basename "$output_name.apkm" .apkm)"
+                    mkdir -p "$bundle_dir"
+                    unzip -q "./download/$output_name.apkm" -d "$bundle_dir"
+                    if [ $? -eq 0 ]; then
+                        green_log "[+] Successfully extracted bundle to $bundle_dir"
+                        return 0
+                    else
+                        red_log "[-] Failed to extract bundle"
+                        return 1
+                    fi
+                fi
                 return 0
-            }
+            fi
         fi
         
         ((attempt++))

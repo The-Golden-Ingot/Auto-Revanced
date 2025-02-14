@@ -25,15 +25,20 @@ setup_requirements() {
 build_photos() {
 	green_log "[+] Building Google Photos..."
 	
-	local version="6.85.0"  # Explicit version from reference
+	local version="6.85.0"  # Keep version in original format
 	if [ ! -f "${DOWNLOAD_DIR}/photos.apk" ]; then
 		get_apk "com.google.android.apps.photos" "photos" "google-photos" \
 				"google-inc/photos/google-photos" "Bundle_extract" "$version"
 	fi
 	
 	# Add split handling before patching
-	split_editor "photos" "photos"
-	apply_patch_set "photos" "photos-revanced" "" "standard"
+	if [ -d "${DOWNLOAD_DIR}/photos" ]; then
+		split_editor "photos" "photos"
+		apply_patch_set "photos" "photos-revanced" "" "standard"
+	else
+		red_log "[-] Photos bundle directory not found"
+		return 1
+	fi
 }
 
 # Build Adobe Lightroom
