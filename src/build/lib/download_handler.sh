@@ -127,7 +127,12 @@ get_download_url() {
     
     # Fallback using grep with a more robust regex pattern (matches both double and single quotes)
     if [ -z "$apk_url" ]; then
-        apk_url=$(echo "$download_page" | grep -oE "https://www\\.apkmirror\\.com/apk/[^\"'\\s<>]+" | head -1)
+        apk_url=$(echo "$download_page" | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')
+    fi
+
+    # Additional fallback from reference implementation
+    if [ -z "$apk_url" ]; then
+        apk_url=$(echo "$download_page" | grep -oP 'id="download-link".*?href="\K[^"]+')
     fi
 
     # Validate URL format

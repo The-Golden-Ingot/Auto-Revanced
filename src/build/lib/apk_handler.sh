@@ -20,7 +20,24 @@ download_apk() {
     fi
     
     if [ -n "$version" ]; then
-        download_specific_version "$output_name" "$app_type" "$app_path" "$version" "$arch" "$dpi"
+        # Get download page URL using our robust get_download_url function
+        local max_attempts=3
+        local attempt=0
+        local download_url=""
+        
+        while [ $attempt -lt $max_attempts ]; do
+            download_url=$(get_download_url "$version_url")
+            [ -n "$download_url" ] && break
+            ((attempt++))
+            red_log "[-] Download attempt $attempt failed, retrying..."
+            sleep 2
+        done
+        
+        if [ -n "$download_url" ]; then
+            download_specific_version "$output_name" "$app_type" "$app_path" "$version" "$arch" "$dpi"
+        else
+            download_latest_version "$output_name" "$app_type" "$app_path" "$arch" "$dpi"
+        fi
     else
         download_latest_version "$output_name" "$app_type" "$app_path" "$arch" "$dpi"
     fi
