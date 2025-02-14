@@ -173,6 +173,17 @@ dl_apk() {
                 if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
                     req "$url" "$output"
                     if [[ -f "./download/$output" ]]; then
+                        # Add URL validation checks
+                        if [[ "$url" != *"apkmirror.com/apk/"* ]]; then
+                            red_log "[-] Invalid download URL: $url"
+                            return 1
+                        fi
+                        # Add HTTP status check
+                        local status_code=$(curl -sI -w "%{http_code}" "$url" -o /dev/null)
+                        if [ "$status_code" -ne 200 ]; then
+                            red_log "[-] Download failed with HTTP $status_code"
+                            return 1
+                        fi
                         return 0
                     fi
                 fi
@@ -215,7 +226,7 @@ get_apk() {
 	fi
 	export version="$version"
     if [[ -n "$version" ]]; then
-        version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
+        version=$(echo "$version" | sed 's/\./-/3')
         green_log "[+] Downloading $3 version: $version $5 $6 $7"
         if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
             local base_apk="$2.apkm"
@@ -241,6 +252,7 @@ get_apk() {
         return 0
     fi
 	local attempt=0
+	local version_suffix=0
 	while [ $attempt -lt 10 ]; do
 		if [[ -z $version ]] || [ $attempt -ne 0 ]; then
 			local upload_tail="?$([[ $3 = duolingo ]] && echo devcategory= || echo appcategory=)"
@@ -250,7 +262,7 @@ get_apk() {
 				grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
 				sed -n "$((attempt + 1))p")
 		fi
-		version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
+		version=$(echo "$version" | sed 's/\./-/3')
 		green_log "[+] Downloading $3 version: $version $5 $6 $7"
 		if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
 			local base_apk="$2.apkm"
@@ -268,6 +280,7 @@ get_apk() {
 			((attempt++))
 			red_log "[-] Failed to download $2, trying another version"
 			unset version
+			((version_suffix++))
 		fi
 	done
 
@@ -368,18 +381,30 @@ gen_rip_libs() {
 	done
 }
 split_arch() {
-	green_log "[+] Splitting $1 to ${archs[i]}:"
-	if [ -f "./download/$1.apk" ]; then
-		unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
-		eval java -jar revanced-cli*.jar patch \
-		-p *.rvp \
-		$3 \
-		--keystore=./src/_ks.keystore --force \
-		--legacy-options=./src/options/$2.json $excludePatches$includePatches \
-		--out=./release/$1-${archs[i]}-$2.apk\
-		./download/$1.apk
-	else
-		red_log "[-] Not found $1.apk"
-		exit 1
-	fi
+    local bundle_ext="apk"
+    [[ $5 == "Bundle" ]] && bundle_ext="apkm"
+    
+    if [ -f "./download/$1.$bundle_ext" ]; then
+        # Add bundle extraction logic
+        if [[ $5 == "Bundle" ]]; then
+            unzip "./download/$1.apkm" -d "./download/$1-bundle" || {
+                red_log "[-] Failed to extract bundle"
+                exit 1
+            }
+        fi
+        green_log "[+] Splitting $1 to ${archs[i]}:"
+        if [ -f "./download/$1.apk" ]; then
+            unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
+            eval java -jar revanced-cli*.jar patch \
+            -p *.rvp \
+            $3 \
+            --keystore=./src/_ks.keystore --force \
+            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+            --out=./release/$1-${archs[i]}-$2.apk\
+            ./download/$1.apk
+        else
+            red_log "[-] Not found $1.apk"
+            exit 1
+        fi
+    fi
 }
