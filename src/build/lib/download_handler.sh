@@ -41,22 +41,25 @@ get_apk() {
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
             local upload_tail="?$( [[ "$app_type" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
-            # Improved version extraction with better pup selector and version filtering
+            # Improved version extraction with more robust CSS selector and version pattern
             version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$app_type" - | \
-                $pup 'div.listWidget a.accent_color:first-child text{}' | \
-                grep -oP '\d+(\.\d+)+' | \
+                $pup 'div.listWidget a.accent_color[title*="APK"] text{}' | \
+                grep -oP '[\d\.]+(?:-[\w\d]+)?' | \
                 sort -Vr | \
                 sed -n "$((attempt + 1))p")
         fi
         
         version=$(format_version "$version")
-        [[ -z "$version" ]] && continue  # Skip empty versions
+        [[ -z "$version" ]] && {
+            red_log "[-] Invalid version detected, skipping..."
+            continue
+        }
         
         green_log "[+] Attempting download of $app_type version: $version"
         
-        # Improved URL construction
+        # Improved URL construction with version validation
         local sanitized_version=$(echo "$version" | sed 's/\./-/g')
-        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/${app_path//\//-}/google-photos-${sanitized_version}-release/")
+        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/${app_path}/google-photos-${sanitized_version}-release/")
         
         if [ -n "$dl_url" ]; then
             download_file "$dl_url" "$output_name.apk" && {
@@ -79,13 +82,19 @@ get_download_url() {
     local page_url=$1
     local download_page=$(download_file "$page_url" -)
     
-    # First try finding direct APK link
+    # Try different selectors in sequence
     local apk_url=$(echo "$download_page" | $pup 'a[data-google-vignette="false"]:contains("Download APK") attr{href}' | head -1)
-    
-    # Fallback to any APK link
+    [[ -z "$apk_url" ]] && apk_url=$(echo "$download_page" | $pup 'a.accent_color[href*="/download/"] attr{href}' | head -1)
     [[ -z "$apk_url" ]] && apk_url=$(echo "$download_page" | grep -oP 'https://www\.apkmirror\.com/apk/[^"]+' | head -1)
     
-    [[ -n "$apk_url" ]] && echo "https://www.apkmirror.com$apk_url" || echo ""
+    # Validate URL format
+    if [[ -n "$apk_url" ]]; then
+        [[ "$apk_url" != http* ]] && apk_url="https://www.apkmirror.com$apk_url"
+        echo "$apk_url"
+    else
+        red_log "[-] No download link found on page"
+        echo ""
+    fi
 }
 
 # Patch key utilities
