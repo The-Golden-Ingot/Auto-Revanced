@@ -58,9 +58,8 @@ get_apk() {
     
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            local upload_tail="?$( [[ "$app_type" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
-            # Improved version extraction with more robust CSS selector and version pattern
-            version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$app_type" - | \
+            local upload_tail="?$( [[ "$apk_name" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
+            version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$apk_name" - | \
                 $pup 'div.listWidget a.accent_color[title*="APK"] text{}' | \
                 grep -oP '[\d\.]+(?:-[\w\d]+)?' | \
                 sort -Vr | \
@@ -70,14 +69,14 @@ get_apk() {
         version=$(format_version "$version")
         [[ -z "$version" ]] && {
             red_log "[-] Invalid version detected, skipping..."
+            ((attempt++))
             continue
         }
         
-        green_log "[+] Attempting download of $app_type version: $version"
+        green_log "[+] Attempting download of $apk_name version: $version"
         
-        # Improved URL construction with version validation
-        local sanitized_version=$(echo "$version" | sed 's/\./-/g')
-        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/${apk_path}/google-photos-${sanitized_version}-release/")
+        # Fix URL construction to use apk_path correctly
+        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path-$version-release/")
         
         if [ -n "$dl_url" ]; then
             download_file "$dl_url" "$output_name.apk" && {
