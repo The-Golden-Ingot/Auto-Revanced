@@ -37,16 +37,6 @@ for i in {0..3}; do
 split_arch "youtube-beta" "anddea" "$(gen_rip_libs ${libs[i]})"
 done
 
-# Patch YouTube Music Extended:
-# Arm64-v8a
-get_patches_key "youtube-music-rve-anddea"
-get_apk "com.google.android.apps.youtube.music" "youtube-music-beta-arm64-v8a" "youtube-music" "google-inc/youtube-music/youtube-music" "arm64-v8a"
-patch "youtube-music-beta-arm64-v8a" "anddea" "inotia"
-# Armeabi-v7a
-get_patches_key "youtube-music-rve-anddea"
-get_apk "com.google.android.apps.youtube.music" "youtube-music-beta-armeabi-v7a" "youtube-music" "google-inc/youtube-music/youtube-music" "armeabi-v7a"
-patch "youtube-music-beta-armeabi-v7a" "anddea" "inotia"
-
 #Disabled because lastest RVE Anddea patch youtube not have splits apk on APKMirror
 #get_apk "com.google.android.youtube" "youtube-lite-beta" "youtube" "google-inc/youtube/youtube" "Bundle_extract"
 # Patch YouTube Lite Arm64-v8a:

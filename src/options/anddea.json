@@ -5,14 +5,5 @@
 		"key" : "AppName",
 		"value" : "RVX Anddea"
 	  } ]
-	}, {
-	  "patchName" : "Custom branding name for YouTube Music",
-	  "options" : [ {
-		"key" : "AppNameNotification",
-		"value" : "RVX Music Anddea"
-	  }, {
-		"key" : "AppNameLauncher",
-		"value" : "RVX Music Anddea"
-	  } ]
 	}
 ]
