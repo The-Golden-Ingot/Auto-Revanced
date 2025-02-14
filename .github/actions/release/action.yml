@@ -9,12 +9,12 @@ runs:
         **Change logs** :point_down:
         
         ## ReVanced Projects
-        - [ReVanced Beta](https://github.com/revanced/revanced-patches/releases)
+        - [ReVanced](https://github.com/revanced/revanced-patches/releases)
         - [ReVanced Extended (anddea)](https://github.com/anddea/revanced-patches/releases)
         - [ReVanced Experiments](https://github.com/Aunali321/ReVancedExperiments/releases)
         
         ## Other Projects
-        - [Twitter Piko Beta](https://github.com/crimera/piko/releases)
+        - [Twitter Piko](https://github.com/crimera/piko/releases)
         "> ${{ github.workspace }}-CHANGELOG.txt
     - name: Release
       uses: ncipollo/release-action@v1.14.0

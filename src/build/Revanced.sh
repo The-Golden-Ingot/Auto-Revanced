@@ -1,5 +1,5 @@
 #!/bin/bash
-# Revanced Beta build script
+# Revanced build script
 source ./src/build/utils.sh
 
 # Download requirements

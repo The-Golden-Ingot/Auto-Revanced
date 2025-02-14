@@ -11,11 +11,11 @@ on:
       org:
         description: 'Which "Revanced" do you want to patch?'
         required: true
-        default: 'Revanced Beta'
+        default: 'Revanced'
         type: choice
         options:
-          - 'Revanced Beta'
-          - 'RVE-anddea-beta'
+          - 'Revanced'
+          - 'rve-anddea'
           - 'Twitter Piko Beta'
           - 'Revanced Experiments'
   workflow_call:
@@ -25,8 +25,8 @@ on:
         type: string
 jobs:
   patch_rv_beta:
-    name: Patch Revanced Beta
-    if: ${{ github.event.inputs.org == 'Revanced Beta' || inputs.org == 'Revanced Beta' }}
+    name: Patch Revanced
+    if: ${{ github.event.inputs.org == 'Revanced' || inputs.org == 'Revanced' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,14 +45,14 @@ jobs:
       - name: Patch apk
         id: patch-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: bash src/build/Revanced-Beta.sh ${{ matrix.run }}
+        run: bash src/build/Revanced.sh ${{ matrix.run }}
       - name: Releasing APK files
         id: release-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
         uses: ./.github/actions/release
-  patch_rve_anddea_beta:
-    name: Patch RVX Anddea Beta version
-    if: ${{ github.event.inputs.org == 'RVE-anddea-beta' || inputs.org == 'RVE-anddea-beta' }}
+  patch_rve_anddea:
+    name: Patch RVE Anddea Beta version
+    if: ${{ github.event.inputs.org == 'rve-anddea' || inputs.org == 'rve-anddea' }}
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
@@ -67,11 +67,11 @@ jobs:
           apt-get update
           apt-get install -y curl jq wget unzip
       - name: Check github connection
-        id: check-gh-rve-anddea-beta
+        id: check-gh-rve-anddea
         run: bash src/etc/connection.sh
       - name: Patch apk
-        id: patch-rve-anddea-beta
-        if: steps.check-gh-rve-anddea-beta.outputs.internet_error == '0'
+        id: patch-rve-anddea
+        if: steps.check-gh-rve-anddea.outputs.internet_error == '0'
         run: bash src/build/Anddea-Revanced.sh
       - name: Cache
         uses: actions/upload-artifact@v4
@@ -79,9 +79,9 @@ jobs:
           name: Cache_anddea_beta
           path: |
             ./release/*.apk
-  release_rve_anddea_beta:
-    name: Release RVX Anddea Beta
-    needs: patch_rve_anddea_beta
+  release_rve_anddea:
+    name: Release RVE Anddea Beta
+    needs: patch_rve_anddea
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

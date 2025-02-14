@@ -21,16 +21,16 @@ jobs:
       - name: Check github connection
         id: check-gh
         run: bash src/etc/connection.sh
-      - name: Check new patch Revanced Beta
+      - name: Check new patch Revanced
         id: check-rv-beta
         if: steps.check-gh.outputs.internet_error == '0'
         run: bash src/etc/ci.sh ReVanced/revanced-patches prerelease youtube-beta-revanced.apk
       - name: Check new patch Revanced Extended forked by Anddea Beta Version
-        id: check-rve-anddea-beta
+        id: check-rve-anddea
         if: steps.check-gh.outputs.internet_error == '0'
         run: bash src/etc/ci.sh anddea/revanced-patches prerelease youtube-beta-anddea.apk
       - name: Check new patch Twitter Piko Beta
-        id: check-twitter-piko-beta
+        id: check-twitter-piko
         if: steps.check-gh.outputs.internet_error == '0'
         run: bash src/etc/ci.sh crimera/piko prerelease twitter-beta-piko.apk
       - name: Check new patch Revanced Experiments
@@ -49,27 +49,27 @@ jobs:
           max_retries: 3
     outputs:
       check_rv_beta: ${{ steps.check-rv-beta.outputs.new_patch }}
-      check_rve_anddea_beta: ${{ steps.check-rve-anddea-beta.outputs.new_patch }}
-      check_twitter_piko_beta: ${{ steps.check-twitter-piko-beta.outputs.new_patch }}
+      check_rve_anddea: ${{ steps.check-rve-anddea.outputs.new_patch }}
+      check_twitter_piko_beta: ${{ steps.check-twitter-piko.outputs.new_patch }}
       check_Revanced_Experiments: ${{ steps.check-Revanced-Experiments.outputs.new_patch }}
 
-  Patch-Revanced-Beta:
-    name: Patch Revanced Beta
+  Patch-Revanced:
+    name: Patch Revanced
     needs: check
     if: ${{ needs.check.outputs.check_rv_beta == 1 }}
     uses: ./.github/workflows/manual-patch.yml
     with:
-      org: "Revanced Beta"
+      org: "Revanced"
 
-  Patch-RVE-anddea-beta:
-    name: Patch RVX Anddea Beta
+  Patch-rve-anddea:
+    name: Patch RVE Anddea Beta
     needs: check
-    if: ${{ needs.check.outputs.check_rve_anddea_beta == 1 }}
+    if: ${{ needs.check.outputs.check_rve_anddea == 1 }}
     uses: ./.github/workflows/manual-patch.yml
     with:
-      org: "RVE-anddea-beta"
+      org: "rve-anddea"
 
-  Patch-Twitter-Piko-Beta:
+  Patch-twitter-piko:
     name: Patch Twitter Piko Beta
     needs: check
     if: ${{ needs.check.outputs.check_twitter_piko_beta == 1 }}
