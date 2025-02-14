@@ -48,6 +48,7 @@ get_apk() {
     local apk_path=$4
     local app_type=$5
     local version=$6
+    local output_name="$2"
     
     local attempt=0
     local base_apk
