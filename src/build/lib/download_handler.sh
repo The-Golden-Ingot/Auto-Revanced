@@ -34,7 +34,8 @@ get_apk() {
     local app_name=$2
     local apk_name=$3
     local apk_path=$4
-    local version=$5
+    local app_type=$5
+    local version=$6
     
     local attempt=0
     local version=""

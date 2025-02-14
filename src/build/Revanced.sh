@@ -25,10 +25,10 @@ setup_requirements() {
 build_photos() {
 	green_log "[+] Building Google Photos..."
 	
-	# Get base APK if not already downloaded
+	local version="6.85.0"  # Explicit version from reference
 	if [ ! -f "${DOWNLOAD_DIR}/photos.apk" ]; then
-		# Add version parameter and Bundle_extract
-		get_apk "com.google.android.apps.photos" "photos" "google-photos" "google-inc/google-photos/google-photos" "Bundle_extract"
+		get_apk "com.google.android.apps.photos" "photos" "google-photos" \
+				"google-inc/google-photos/google-photos" "Bundle_extract" "$version"
 	fi
 	
 	# Add split handling before patching
