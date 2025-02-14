@@ -66,7 +66,11 @@ get_apk() {
                 sed -n "$((attempt + 1))p")
         fi
         
-        version=$(format_version "$version")
+        # Should preserve original version format when explicitly provided
+        if [[ -z $6 ]]; then  # Only format if version wasn't provided as parameter
+            version=$(format_version "$version")
+        fi
+        
         [[ -z "$version" ]] && {
             red_log "[-] Invalid version detected, skipping..."
             ((attempt++))

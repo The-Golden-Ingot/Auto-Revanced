@@ -28,7 +28,7 @@ build_photos() {
 	local version="6.85.0"  # Explicit version from reference
 	if [ ! -f "${DOWNLOAD_DIR}/photos.apk" ]; then
 		get_apk "com.google.android.apps.photos" "photos" "google-photos" \
-				"google-inc/google-photos/google-photos" "Bundle_extract" "$version"
+				"google-inc/photos/google-photos" "Bundle_extract" "$version"
 	fi
 	
 	# Add split handling before patching
