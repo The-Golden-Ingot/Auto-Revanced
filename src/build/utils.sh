@@ -91,14 +91,7 @@ dl_gh() {
 
 # Get patches list:
 get_patches_key() {
-	local key_path="./src/patches/$1/patches.key"
-	if [ -f "$key_path" ]; then
-		echo "--keystore=\"$key_path\" --custom-keystore"
-	else
-		# Fallback to default keystore with warning
-		yellow_log "[!] Using default keystore for $1"
-		echo "--keystore=./src/_ks.keystore"  
-	fi
+	echo "--keystore=./src/_ks.keystore"
 }
 
 #################################################
@@ -350,40 +343,18 @@ gen_rip_libs() {
 	done
 }
 split_arch() {
-    local bundle_ext="apk"
-    [[ $5 == "Bundle" ]] && bundle_ext="apkm"
-    
-    if [ -f "./download/$1.$bundle_ext" ]; then
-        # Handle bundle extraction
-        if [[ $5 == "Bundle" ]]; then
-            green_log "[+] Extracting Android Bundle..."
-            unzip -q "./download/$1.apkm" -d "./download/$1-bundle" || {
-                red_log "[-] Failed to extract bundle"
-                exit 1
-            }
-            # Find the base APK in the bundle
-            local base_apk=$(find "./download/$1-bundle" -name "base.apk")
-            [ -f "$base_apk" ] && mv "$base_apk" "./download/$1.apk"
-        fi
-        green_log "[+] Splitting $1 to ${archs[i]}:"
-        if [ -f "./download/$1.apk" ]; then
-            unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
-            eval java -jar revanced-cli*.jar patch \
-            -p *.rvp \
-            $3 \
-            $(get_patches_key $2) --force \
-            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
-            --out=./release/$1-${archs[i]}-$2.apk\
-            ./download/$1.apk || {
-                red_log "[-] Patching failed for $1-${archs[i]}"
-                return 1  # Continue with other architectures
-            }
-        else
-            red_log "[-] Not found $1.apk"
-            return 1
-        fi
+    green_log "[+] Splitting $1 to ${archs[i]}:"
+    if [ -f "./download/$1.apk" ]; then
+        unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
+        eval java -jar revanced-cli*.jar patch \
+        -p *.rvp \
+        $3 \
+        --keystore=./src/_ks.keystore --force \
+        --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+        --out=./release/$1-${archs[i]}-$2.apk\
+        ./download/$1.apk
     else
-        red_log "[-] Missing APK file: ./download/$1.$bundle_ext"
+        red_log "[-] Not found $1.apk"
         exit 1
     fi
 }

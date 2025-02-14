@@ -135,15 +135,5 @@ get_download_url() {
 
 # Patch key utilities
 get_patches_key() {
-    local app_name=$1
-    
-    green_log "[+] Getting patches key for ${app_name}..."
-    
-    local key_file="${PATCHES_DIR}/${app_name}/patches.key"
-    if [ -f "$key_file" ]; then
-        cat "$key_file"
-    else
-        red_log "[-] Patches key file not found: ${key_file}"
-        return 1
-    fi
+    echo "--keystore=./src/_ks.keystore"
 } 
