@@ -110,9 +110,11 @@ req() {
 dl_apk() {
     local url=$1 regexp=$2 output=$3
     local max_attempts=3 attempt=0
+    local bundle_type=$4
+    local arch=$5
     
     # Use reference implementation's regex patterns
-    case "$4" in
+    case "$bundle_type" in
         "Bundle"|"Bundle_extract")
             url_regexp='BUNDLE<\/span>'
             ;;
@@ -121,9 +123,9 @@ dl_apk() {
             ;;
     esac
 
-    # Add architecture handling from reference
-    if [[ -n "$6" ]]; then
-        case "$5" in
+    # Architecture handling updated to use $arch parameter
+    if [[ -n "$arch" ]]; then
+        case "$arch" in
             arm64-v8a) url_regexp='arm64-v8a</div>[^@]*@\([^"]*\)' ;;
             armeabi-v7a) url_regexp='armeabi-v7a</div>[^@]*@\([^"]*\)' ;;
             x86) url_regexp='x86</div>[^@]*@\([^"]*\)' ;;
@@ -194,7 +196,8 @@ get_apk() {
         local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4-$version-release/" \
                               "$url_regexp" \
                               "$base_apk" \
-                              "$5")
+                              "$5" \
+                              "$6")
         if [[ -f "./download/$base_apk" ]]; then
             green_log "[+] Successfully downloaded $2"
         else
@@ -230,7 +233,8 @@ get_apk() {
 		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4-$version-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
-							  "$5")
+							  "$5" \
+							  "$6")
 		if [[ -f "./download/$base_apk" ]]; then
 			green_log "[+] Successfully downloaded $2"
 			break

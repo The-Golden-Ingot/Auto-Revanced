@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "src/build/utils.sh"
+source "../utils.sh"
 source "src/build/lib/config.sh"
 
 # Download APK from APKMirror
@@ -11,6 +11,7 @@ get_apk() {
     local apkmirror_dlurl=$4
     local bundle_type=${5:-""}  # Default to empty string if not provided
     local version=${6:-""}      # Default to empty string if not provided
+    local arch=${7:-""}         # Default to empty string if not provided
     
     green_log "[+] Building ${output_name}..."
     
@@ -45,7 +46,11 @@ get_apk() {
 
     # Download APK using dl_apk from utils.sh
     green_log "[+] Downloading APK..."
-    dl_apk "$version_url" "$url_regexp" "$output_name" "$bundle_type"
+    dl_apk "$version_url" \
+           "$url_regexp" \
+           "$output_name" \
+           "$bundle_type" \
+           "$arch"
     
     # Handle bundle if needed
     if [ "$bundle_type" = "Bundle_extract" ] && [ -f "./download/${output_name}.apk" ]; then
