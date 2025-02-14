@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # Global configuration values
-declare -r DOWNLOAD_DIR="./download"
-declare -r RELEASE_DIR="./release"
-declare -r PATCHES_DIR="./src/patches"
-declare -r OPTIONS_DIR="./src/options"
+if [ -z "${DOWNLOAD_DIR+x}" ]; then
+    declare -r DOWNLOAD_DIR="./download"
+    declare -r RELEASE_DIR="./release"
+    declare -r PATCHES_DIR="./src/patches"
+    declare -r OPTIONS_DIR="./src/options"
+fi
 
 # Repository configurations
 declare -A REPOS=(
