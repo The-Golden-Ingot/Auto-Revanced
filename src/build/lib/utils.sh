@@ -73,4 +73,37 @@ apply_patches() {
         ${patch_options} \
         --out="./release/${output_name}.apk" \
         "./download/${input_apk}.apk"
-} 
+}
+
+split_editor() {
+    if [[ -z "$3" || -z "$4" ]]; then
+        green_log "[+] Merge splits apk to standalone apk"
+        java -jar "$APK_EDITOR" m -i "./download/$1" -o "./download/$1.apk" > /dev/null 2>&1
+        return 0
+    fi
+    IFS=' ' read -r -a include_files <<< "$4"
+    mkdir -p "./download/$2"
+    for file in "./download/$1"/*.apk; do
+        filename=$(basename "$file")
+        basename_no_ext="${filename%.apk}"
+        if [[ "$filename" == "base.apk" ]]; then
+            cp -f "$file" "./download/$2/" > /dev/null 2>&1
+            continue
+        fi
+        if [[ "$3" == "include" ]]; then
+            if [[ " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1
+            fi
+        elif [[ "$3" == "exclude" ]]; then
+            if [[ ! " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1
+            fi
+        fi
+    done
+
+    green_log "[+] Merge splits apk to standalone apk"
+    java -jar "$APK_EDITOR" m -i "./download/$2" -o "./download/$2.apk" > /dev/null 2>&1
+}
+
+# Export the split_editor function so that it's available in subshells if needed.
+export -f split_editor 
