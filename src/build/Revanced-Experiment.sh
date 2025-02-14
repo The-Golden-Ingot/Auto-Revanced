@@ -30,10 +30,11 @@ build_instagram() {
     
     # Get base APK if not already downloaded
     if [ ! -f "${DOWNLOAD_DIR}/instagram.apk" ]; then
-        get_apk "com.instagram.android" "instagram" "instagram" "instagram/instagram"
+        get_apk "com.instagram.android" "instagram" "instagram" "instagram/instagram" "Bundle_extract"
     fi
     
-    # Apply patches
+    # Add split handling before patching
+    split_editor "instagram" "instagram"
     apply_patch_set "instagram" "instagram-experiments" "" "standard"
 }
 

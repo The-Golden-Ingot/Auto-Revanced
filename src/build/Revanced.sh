@@ -25,10 +25,14 @@ setup_requirements() {
 build_photos() {
 	green_log "[+] Building Google Photos..."
 	
+	# Get base APK if not already downloaded
 	if [ ! -f "${DOWNLOAD_DIR}/photos.apk" ]; then
-		get_apk "com.google.android.apps.photos" "photos" "google-photos" "google-inc/google-photos/google-photos"
+		# Add version parameter and Bundle_extract
+		get_apk "com.google.android.apps.photos" "photos" "google-photos" "google-inc/google-photos/google-photos" "Bundle_extract"
 	fi
 	
+	# Add split handling before patching
+	split_editor "photos" "photos"
 	apply_patch_set "photos" "photos-revanced" "" "standard"
 }
 

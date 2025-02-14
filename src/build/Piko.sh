@@ -30,10 +30,11 @@ build_twitter() {
 	
 	# Get base APK if not already downloaded
 	if [ ! -f "${DOWNLOAD_DIR}/twitter.apk" ]; then
-		get_apk "com.twitter.android" "twitter" "twitter" "twitter/twitter"
+		get_apk "com.twitter.android" "twitter" "twitter" "twitter/twitter" "Bundle_extract"
 	fi
 	
-	# Apply patches
+	# Add split handling before patching
+	split_editor "twitter" "twitter"
 	apply_patch_set "twitter" "twitter-piko" "" "standard"
 }
 

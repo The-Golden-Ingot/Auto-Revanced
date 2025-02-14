@@ -31,9 +31,10 @@ dl_gh() {
 # APK Mirror download utilities
 get_apk() {
     local package_name=$1
-    local output_name=$2
-    local app_type=$3
-    local app_path=$4
+    local app_name=$2
+    local apk_name=$3
+    local apk_path=$4
+    local version=$5
     
     local attempt=0
     local version=""
@@ -59,7 +60,7 @@ get_apk() {
         
         # Improved URL construction with version validation
         local sanitized_version=$(echo "$version" | sed 's/\./-/g')
-        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/${app_path}/google-photos-${sanitized_version}-release/")
+        local dl_url=$(get_download_url "https://www.apkmirror.com/apk/${apk_path}/google-photos-${sanitized_version}-release/")
         
         if [ -n "$dl_url" ]; then
             download_file "$dl_url" "$output_name.apk" && {
