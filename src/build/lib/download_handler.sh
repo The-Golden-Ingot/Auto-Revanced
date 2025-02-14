@@ -32,10 +32,10 @@ get_apk() {
         version_url="${base_url}/uploads/?appcategory=${pkg_name}"
     fi
     
-    # Get download page URL
-    local download_url=$(wget -qO- "$version_url" | $pup 'a[href*="/download/"] attr{href}' | head -n 1)
+    # Get download page URL using our robust get_download_url function
+    local download_url=$(get_download_url "$version_url")
     if [ -z "$download_url" ]; then
-        red_log "[-] Failed to find download URL"
+        red_log "[-] Failed to find download URL for ${pkg_name}"
         return 1
     fi
     
