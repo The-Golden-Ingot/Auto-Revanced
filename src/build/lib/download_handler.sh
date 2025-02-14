@@ -42,14 +42,12 @@ format_version() {
 
 # APK Mirror download utilities
 get_apk() {
-    local package_name=$1
-    local app_name=$2
-    local apk_name=$3
-    local apk_path=$4
-    local app_type=$5
-    local version=$6
-    local output_name="$2"
-    
+    local pkg_name=$1
+    local output_name=$2
+    local app_type=$3
+    local apkmirror_dlurl=$4
+    local bundle_type=${5:-""}  # Default to empty string if not provided
+    local version=${6:-""}      # Default to empty string if not provided
     local attempt=0
     local base_apk
     
@@ -58,8 +56,8 @@ get_apk() {
     
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            local upload_tail="?$( [[ "$apk_name" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
-            version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$apk_name" - | \
+            local upload_tail="?$( [[ "$pkg_name" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
+            version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$pkg_name" - | \
                 $pup 'div.listWidget a.accent_color[title*="APK"] text{}' | \
                 grep -oP '[\d\.]+(?:-[\w\d]+)?' | \
                 sort -Vr | \
@@ -71,14 +69,14 @@ get_apk() {
             version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
         fi
         
-        green_log "[+] Attempting download of $apk_name version: $version"
+        green_log "[+] Attempting download of $pkg_name version: $version"
         
         # Fix URL construction to match APKMirror's format
         local dl_url
         if [[ "$app_type" == "Bundle" ]] || [[ "$app_type" == "Bundle_extract" ]]; then
-            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path/$apk_name-$version-release/")
+            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apkmirror_dlurl/$pkg_name-$version-release/")
         else
-            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apk_path/$apk_name-$version-release/")
+            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apkmirror_dlurl/$pkg_name-$version-release/")
         fi
         
         green_log "[+] Trying URL: $dl_url"

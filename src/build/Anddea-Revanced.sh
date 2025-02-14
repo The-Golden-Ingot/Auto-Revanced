@@ -32,6 +32,7 @@ setup_requirements() {
 build_youtube() {
     local arch=$1
     local libs=$2
+    local version=${YOUTUBE_VERSION:-""}  # Default to empty if not set
     
     green_log "[+] Building YouTube for ${arch}..."
     
