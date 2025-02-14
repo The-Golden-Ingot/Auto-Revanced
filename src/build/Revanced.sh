@@ -1,60 +1,68 @@
 #!/bin/bash
-# Revanced build script
-source ./src/build/utils.sh
+# Official ReVanced build script
+
+source "src/build/lib/utils.sh"
+source "src/build/lib/config.sh"
+source "src/build/lib/error_handler.sh"
+source "src/build/lib/download_handler.sh"
+source "src/build/lib/patch_handler.sh"
+source "src/build/lib/cli_handler.sh"
+source "src/build/lib/init.sh"
+
+# Initialize environment
+init_build_env
 
 # Download requirements
-revanced_dl() {
-	dl_gh "revanced-patches" "revanced" "prerelease"
-	dl_gh "revanced-cli" "revanced" "latest"
+setup_requirements() {
+	green_log "[+] Downloading build requirements..."
+	
+	# Download patches and CLI
+	dl_gh "${REPOS[revanced]%%|*}" "prerelease"
+	dl_gh "${REPOS[revanced_cli]%%|*}" "latest"
 }
 
-# Patch Google Photos
-patch_google_photos() {
-	revanced_dl
-	# Patch Google photos:
-	# Arm64-v8a
-	get_patches_key "gg-photos"
-	get_apk "com.google.android.apps.photos" "gg-photos-arm64-v8a-beta" "photos" "google-inc/photos/google-photos" "arm64-v8a" "nodpi"
-	patch "gg-photos-arm64-v8a-beta" "revanced"
+# Build Google Photos
+build_photos() {
+	green_log "[+] Building Google Photos..."
+	
+	if [ ! -f "${DOWNLOAD_DIR}/photos.apk" ]; then
+		get_apk "com.google.android.apps.photos" "photos" "google-photos" "google-inc/google-photos/google-photos"
+	fi
+	
+	apply_patch_set "photos" "photos-revanced" "" "standard"
 }
 
-# Patch SoundCloud
-patch_soundcloud() {
-	revanced_dl
-	# Patch SoundCloud Arm64-v8a:
-	get_patches_key "soundcloud"
-	get_apk "com.soundcloud.android" "soundcloud-beta" "soundcloud" "soundcloud/soundcloud/soundcloud" "Bundle_extract"
-	split_editor "soundcloud-beta" "soundcloud-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
-	patch "soundcloud-arm64-v8a-beta" "revanced"
+# Build Adobe Lightroom
+build_lightroom() {
+	green_log "[+] Building Adobe Lightroom..."
+	
+	if [ ! -f "${DOWNLOAD_DIR}/lightroom.apk" ]; then
+		get_apk "com.adobe.lrmobile" "lightroom" "adobe-lightroom" "adobe/lightroom/adobe-lightroom"
+	fi
+	
+	apply_patch_set "lightroom" "lightroom-revanced" "" "standard"
 }
 
-# Patch Lightroom
-patch_adobe_lightroom() {
-	revanced_dl
-	# Patch Lightroom:
-	get_patches_key "lightroom"
-	url="https://adobe-lightroom-mobile.en.uptodown.com/android/download"
-	url="https://dw.uptodown.com/dwn/$(req "$url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
-	req "$url" "lightroom-beta.apk"
-	patch "lightroom-beta" "revanced"
+# Build SoundCloud
+build_soundcloud() {
+	green_log "[+] Building SoundCloud..."
+	
+	if [ ! -f "${DOWNLOAD_DIR}/soundcloud.apk" ]; then
+		get_apk "com.soundcloud.android" "soundcloud" "soundcloud" "soundcloud/soundcloud"
+	fi
+	
+	apply_patch_set "soundcloud" "soundcloud-revanced" "" "standard"
 }
 
-# Main execution
-case "$1" in
-	1)
-		patch_google_photos
-		;; 
-	2)
-		patch_soundcloud
-		;;
-	3)
-		patch_adobe_lightroom
-		;;
-	*)
-		echo "Usage: $0 {1|2|3}"
-		echo "1: Google Photos"
-		echo "2: SoundCloud"
-		echo "3: Lightroom"
-		exit 1
-		;;
-esac
+main() {
+	# Initial setup
+	setup_requirements
+	
+	# Build all apps
+	build_photos
+	build_lightroom
+	build_soundcloud
+}
+
+# Execute main function
+main

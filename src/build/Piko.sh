@@ -1,24 +1,49 @@
 #!/bin/bash
-# Twitter Piko
-source src/build/utils.sh
+# Piko build script
 
-# Patch Twitter Piko:
-patch_piko () {
-	dl_gh "revanced-cli" "revanced" "v4.6.0"
+source "src/build/lib/utils.sh"
+source "src/build/lib/config.sh"
+source "src/build/lib/error_handler.sh"
+source "src/build/lib/download_handler.sh"
+source "src/build/lib/patch_handler.sh"
+source "src/build/lib/cli_handler.sh"
+source "src/build/lib/init.sh"
+
+# Initialize environment
+init_build_env
+
+# Download requirements
+setup_requirements() {
+	green_log "[+] Downloading build requirements..."
+	
+	# Download patches and CLI
+	dl_gh "${REPOS[piko]%%|*}" "prerelease"
+	dl_gh "${REPOS[revanced_cli]%%|*}" "latest"
+	
+	# Setup patch configuration
 	get_patches_key "twitter-piko"
-	local v apk_name
-	if [[ "$1" == "latest" ]]; then
-		v="latest" apk_name="stable"
-	else
-		v="prerelease" apk_name="beta"
-	fi
-	dl_gh "piko revanced-integrations" "crimera" "$v"
-	get_apk "com.twitter.android" "twitter-$apk_name" "twitter" "x-corp/twitter/x-previously-twitter" "Bundle_extract"
-	split_editor "twitter-$apk_name" "twitter-$apk_name"
-	patch "twitter-$apk_name" "piko"
-	# Patch Twitter Piko Arm64-v8a:
-	get_patches_key "twitter-piko"
-	split_editor "twitter-$apk_name" "twitter-arm64-v8a-$apk_name" "exclude" "plit_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxhdpi split_config.tvdpi"
-	patch "twitter-arm64-v8a-$apk_name" "piko"
 }
-patch_piko $1
+
+# Build Twitter
+build_twitter() {
+	green_log "[+] Building Twitter..."
+	
+	# Get base APK if not already downloaded
+	if [ ! -f "${DOWNLOAD_DIR}/twitter.apk" ]; then
+		get_apk "com.twitter.android" "twitter" "twitter" "twitter/twitter"
+	fi
+	
+	# Apply patches
+	apply_patch_set "twitter" "twitter-piko" "" "standard"
+}
+
+main() {
+	# Initial setup
+	setup_requirements
+	
+	# Build Twitter
+	build_twitter
+}
+
+# Execute main function
+main

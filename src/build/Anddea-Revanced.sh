@@ -1,7 +1,16 @@
 #!/bin/bash
 # Revanced Extended forked by Anddea build
 
-source src/build/lib/utils.sh
+source "src/build/lib/utils.sh"
+source "src/build/lib/config.sh"
+source "src/build/lib/error_handler.sh"
+source "src/build/lib/download_handler.sh"
+source "src/build/lib/patch_handler.sh"
+source "src/build/lib/cli_handler.sh"
+source "src/build/lib/init.sh"
+
+# Initialize environment
+init_build_env
 
 # Configuration
 PATCHES_REPO="anddea/revanced-patches"
@@ -12,8 +21,8 @@ setup_requirements() {
     green_log "[+] Downloading build requirements..."
     
     # Download patches and CLI
-    dl_gh "$PATCHES_REPO" "prerelease"
-    dl_gh "$CLI_REPO" "latest"
+    dl_gh "${REPOS[anddea]%%|*}" "prerelease"
+    dl_gh "${REPOS[anddea_cli]%%|*}" "latest"
     
     # Setup patch configuration
     get_patches_key "youtube-rve-anddea"
@@ -27,32 +36,22 @@ build_youtube() {
     green_log "[+] Building YouTube for ${arch}..."
     
     # Get base APK if not already downloaded
-    if [ ! -f "./download/youtube-beta.apk" ]; then
+    if [ ! -f "${DOWNLOAD_DIR}/youtube-beta.apk" ]; then
         get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
     fi
     
     # Apply patches with architecture-specific options
-    local patch_opts="$(gen_rip_libs ${libs})"
-    apply_patches "youtube-beta" "youtube-${arch}-anddea" "${patch_opts}"
+    local patch_opts="--rip-lib $(echo "$libs" | tr ' ' ' --rip-lib ')"
+    apply_patch_set "youtube-beta" "youtube-${arch}-anddea" "${patch_opts}" "inotia"
 }
 
 main() {
     # Initial setup
     setup_requirements
     
-    # Build base version
-    patch "youtube-beta" "anddea" "inotia"
-    
     # Build architecture-specific versions
-    declare -A arch_configs=(
-        ["arm64-v8a"]="armeabi-v7a x86_64 x86"
-        ["armeabi-v7a"]="arm64-v8a x86_64 x86"
-        ["x86_64"]="armeabi-v7a arm64-v8a x86"
-        ["x86"]="armeabi-v7a arm64-v8a x86_64"
-    )
-    
-    for arch in "${!arch_configs[@]}"; do
-        build_youtube "$arch" "${arch_configs[$arch]}"
+    for arch in "${!ARCH_CONFIGS[@]}"; do
+        build_youtube "$arch" "${ARCH_CONFIGS[$arch]}"
     done
 }
 
