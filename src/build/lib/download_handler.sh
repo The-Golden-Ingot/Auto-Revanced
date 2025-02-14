@@ -20,8 +20,8 @@ dl_gh() {
         api_response=$(fetch_github_release "$owner" "$repo_name" "")
     fi
     
-    # Download assets
-    echo "$api_response" | jq -r '.assets[] | select(.name | test(".(jar|apk|rvp)$")) | .browser_download_url' | \
+    # Download assets with improved jq filter to handle both object and array responses
+    echo "$api_response" | jq -r 'if type=="array" then .[] else . end | .assets[] | select(.name | test("\\.(jar|apk|rvp)$")) | .browser_download_url' | \
     while read -r url; do
         local filename=$(basename "$url")
         download_file "$url" "$filename"
