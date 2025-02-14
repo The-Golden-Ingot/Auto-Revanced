@@ -111,17 +111,31 @@ get_download_url() {
     local page_url=$1
     local download_page=$(download_file "$page_url" -)
     
-    # Try different selectors in sequence
-    local apk_url=$(echo "$download_page" | $pup 'a[data-google-vignette="false"]:contains("Download APK") attr{href}' | head -1)
-    [[ -z "$apk_url" ]] && apk_url=$(echo "$download_page" | $pup 'a.accent_color[href*="/download/"] attr{href}' | head -1)
-    [[ -z "$apk_url" ]] && apk_url=$(echo "$download_page" | grep -oP 'https://www\.apkmirror\.com/apk/[^"]+' | head -1)
+    # Check if the download page is empty
+    if [ -z "$download_page" ]; then
+        red_log "[-] Download page is empty for URL: $page_url"
+        echo ""
+        return
+    fi
     
+    # Try different selectors in sequence using pup
+    local apk_url
+    apk_url=$(echo "$download_page" | $pup 'a[data-google-vignette="false"]:contains("Download APK") attr{href}' | head -1)
+    if [ -z "$apk_url" ]; then
+        apk_url=$(echo "$download_page" | $pup 'a.accent_color[href*="/download/"] attr{href}' | head -1)
+    fi
+    
+    # Fallback using grep with a more robust regex pattern (matches both double and single quotes)
+    if [ -z "$apk_url" ]; then
+        apk_url=$(echo "$download_page" | grep -oE "https://www\\.apkmirror\\.com/apk/[^\"'\\s<>]+" | head -1)
+    fi
+
     # Validate URL format
     if [[ -n "$apk_url" ]]; then
         [[ "$apk_url" != http* ]] && apk_url="https://www.apkmirror.com$apk_url"
         echo "$apk_url"
     else
-        red_log "[-] No download link found on page"
+        red_log "[-] No download link found on page: $page_url"
         echo ""
     fi
 }
