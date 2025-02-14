@@ -146,42 +146,48 @@ req() {
 }
 dl_apk() {
     local url=$1 regexp=$2 output=$3
-    local max_retries=3
-    local retry=0
-    local success=0
+    local max_attempts=3
+    local attempt=0
     
-    while [ $retry -lt $max_retries ] && [ $success -eq 0 ]; do
+    while [ $attempt -lt $max_attempts ]; do
+        # First try to get the download page URL
         if [[ -z "$4" ]] || [[ $4 == "Bundle" ]] || [[ $4 == "Bundle_extract" ]]; then
-            url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
+            local page_url=$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")
+            [[ -n "$page_url" ]] && url="https://www.apkmirror.com$page_url"
         else
-            url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
+            local page_url=$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")
+            [[ -n "$page_url" ]] && url="https://www.apkmirror.com$page_url"
         fi
 
+        # If we got a valid page URL, try to get the download button URL
         if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
-            url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
-            url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
+            local download_url=$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')
+            [[ -n "$download_url" ]] && url="https://www.apkmirror.com$download_url"
             
+            # Get the final download link
             if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
-                req "$url" "$output"
-                if [ -f "./download/$output" ]; then
-                    success=1
-                    break
+                local final_url=$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')
+                [[ -n "$final_url" ]] && url="https://www.apkmirror.com$final_url"
+                
+                # Try to download the file
+                if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
+                    req "$url" "$output"
+                    if [[ -f "./download/$output" ]]; then
+                        return 0
+                    fi
                 fi
             fi
         fi
         
-        retry=$((retry + 1))
-        if [ $retry -lt $max_retries ]; then
-            echo "Download failed, retrying with older version..."
-            # Try an older version by modifying the URL
-            url=$(echo "$1" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)/\1-'$retry'/')
+        ((attempt++))
+        if [ $attempt -lt $max_attempts ]; then
+            red_log "[-] Download attempt $attempt failed, retrying..."
+            sleep 2
         fi
     done
-
-    if [ $success -eq 0 ]; then
-        echo "Failed to download after $max_retries attempts"
-        exit 1
-    fi
+    
+    red_log "[-] Failed to download after $max_attempts attempts"
+    return 1
 }
 get_apk() {
 	if [[ -z $5 ]]; then
