@@ -6,18 +6,22 @@ runs:
       shell: bash
       run: |
         echo "
-        **Change log** :point_down:
-        [Revanced Beta](https://github.com/revanced/revanced-patches/releases)
-        [Revanced Extended anddea Beta](https://github.com/anddea/revanced-patches/releases)
-        [Twitter Piko Beta](https://github.com/crimera/piko/releases)
-        [Revanced Experiments](https://github.com/Aunali321/ReVancedExperiments/releases)
+        **Change logs** :point_down:
+        
+        ## ReVanced Projects
+        - [ReVanced Beta](https://github.com/revanced/revanced-patches/releases)
+        - [ReVanced Extended (anddea)](https://github.com/anddea/revanced-patches/releases)
+        - [ReVanced Experiments](https://github.com/Aunali321/ReVancedExperiments/releases)
+        
+        ## Other Projects
+        - [Twitter Piko Beta](https://github.com/crimera/piko/releases)
         "> ${{ github.workspace }}-CHANGELOG.txt
     - name: Release
       uses: ncipollo/release-action@v1.14.0
       with:
         artifacts: |
           ./release/*.apk
-        name: Revanced & Revanced Extended
+        name: ReVanced Collection
         tag: all
         bodyFile: ${{ github.workspace }}-CHANGELOG.txt
         allowUpdates: true

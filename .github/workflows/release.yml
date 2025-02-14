@@ -1,12 +1,41 @@
-# Add this to the release step to make tags unique
-- name: Create Release
-  uses: softprops/action-gh-release@v1
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  with:
-    tag_name: revanced-${{ github.run_id }}  # Unique tag using GitHub run ID
-    body: |
-      Automated ReVanced Build
-      Version: ${{ steps.vars.outputs.version }}
-    files: |
-      build/*.apk 
+name: Release APKs
+permissions: write-all
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Generate release info
+        id: release_info
+        run: |
+          echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+          echo "run_number=$(printf "%05d" ${{ github.run_number }})" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.release_info.outputs.date }}.${{ steps.release_info.outputs.run_number }}
+          name: ReVanced Collection ${{ steps.release_info.outputs.date }}
+          body: |
+            ## ReVanced Collection Build
+            **Build Date**: ${{ steps.release_info.outputs.date }}
+            **Build Number**: ${{ steps.release_info.outputs.run_number }}
+            
+            ### Change Logs
+            - [ReVanced Beta](https://github.com/revanced/revanced-patches/releases)
+            - [ReVanced Extended (anddea)](https://github.com/anddea/revanced-patches/releases)
+            - [ReVanced Experiments](https://github.com/Aunali321/ReVancedExperiments/releases)
+            - [Twitter Piko Beta](https://github.com/crimera/piko/releases)
+          files: |
+            ./release/*.apk
+          draft: false
+          prerelease: false 
