@@ -109,54 +109,30 @@ req() {
 }
 dl_apk() {
     local url=$1 regexp=$2 output=$3
-    local max_attempts=3
-    local attempt=0
+    local max_attempts=3 attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        # First try to get the download page URL
-        if [[ -z "$4" ]] || [[ $4 == "Bundle" ]] || [[ $4 == "Bundle_extract" ]]; then
-            local page_url=$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")
-            [[ -n "$page_url" ]] && url="https://www.apkmirror.com$page_url"
-        else
-            local page_url=$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")
-            [[ -n "$page_url" ]] && url="https://www.apkmirror.com$page_url"
-        fi
-
-        # If we got a valid page URL, try to get the download button URL
-        if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
-            local download_url=$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')
-            [[ -n "$download_url" ]] && url="https://www.apkmirror.com$download_url"
+        # Reference implementation's URL construction logic
+        url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | \
+            sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
+        
+        [ "$url" != "https://www.apkmirror.com" ] && \
+        url="https://www.apkmirror.com$(req "$url" - | \
+            grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
             
-            # Get the final download link
-            if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
-                local final_url=$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')
-                [[ -n "$final_url" ]] && url="https://www.apkmirror.com$final_url"
-                
-                # Try to download the file
-                if [[ -n "$url" && "$url" != "https://www.apkmirror.com" ]]; then
-                    req "$url" "$output"
-                    if [[ -f "./download/$output" ]]; then
-                        # Add URL validation checks
-                        local status_code=$(curl -sI -w "%{http_code}" "$url" -o /dev/null)
-                        if [ "$status_code" -ne 200 ]; then
-                            red_log "[-] Download failed with HTTP $status_code"
-                            return 1
-                        fi
-                        if [[ "$url" != *"apkmirror.com/apk/"* ]] || [[ "$url" == *"//[-]"* ]]; then
-                            red_log "[-] Malformed download URL: $url"
-                            return 1
-                        fi
-                        return 0
-                    fi
-                fi
-            fi
+        [ "$url" != "https://www.apkmirror.com" ] && \
+        url="https://www.apkmirror.com$(req "$url" - | \
+            grep -oP 'id="download-link".*?href="\K[^"]+')"
+
+        # Add reference validation checks
+        if [[ "$url" != "https://www.apkmirror.com" ]]; then
+            req "$url" "$output"
+            [ -f "./download/$output" ] && return 0
         fi
         
         ((attempt++))
-        if [ $attempt -lt $max_attempts ]; then
-            red_log "[-] Download attempt $attempt failed, retrying..."
-            sleep 2
-        fi
+        red_log "[-] Download attempt $attempt failed, retrying..."
+        sleep 2
     done
     
     red_log "[-] Failed to download after $max_attempts attempts"

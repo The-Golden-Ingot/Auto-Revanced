@@ -111,36 +111,22 @@ get_download_url() {
     local page_url=$1
     local download_page=$(download_file "$page_url" -)
     
-    # Check if the download page is empty
-    if [ -z "$download_page" ]; then
-        red_log "[-] Download page is empty for URL: $page_url"
-        echo ""
-        return
-    fi
+    # Use reference implementation's multi-step parsing approach
+    local apk_url=$(echo "$download_page" | \
+        $pup 'a[data-google-vignette="false"]:contains("Download APK") attr{href}' | head -1)
+        
+    [ -z "$apk_url" ] && apk_url=$(echo "$download_page" | \
+        grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')
     
-    # Try different selectors in sequence using pup
-    local apk_url
-    apk_url=$(echo "$download_page" | $pup 'a[data-google-vignette="false"]:contains("Download APK") attr{href}' | head -1)
-    if [ -z "$apk_url" ]; then
-        apk_url=$(echo "$download_page" | $pup 'a.accent_color[href*="/download/"] attr{href}' | head -1)
-    fi
-    
-    # Fallback using grep with a more robust regex pattern (matches both double and single quotes)
-    if [ -z "$apk_url" ]; then
-        apk_url=$(echo "$download_page" | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')
-    fi
+    [ -z "$apk_url" ] && apk_url=$(echo "$download_page" | \
+        grep -oP 'id="download-link".*?href="\K[^"]+')
 
-    # Additional fallback from reference implementation
-    if [ -z "$apk_url" ]; then
-        apk_url=$(echo "$download_page" | grep -oP 'id="download-link".*?href="\K[^"]+')
-    fi
-
-    # Validate URL format
+    # Add reference implementation's URL validation
     if [[ -n "$apk_url" ]]; then
         [[ "$apk_url" != http* ]] && apk_url="https://www.apkmirror.com$apk_url"
         echo "$apk_url"
     else
-        red_log "[-] No download link found on page: $page_url"
+        red_log "[-] Failed to parse download URL using all methods"
         echo ""
     fi
 }
