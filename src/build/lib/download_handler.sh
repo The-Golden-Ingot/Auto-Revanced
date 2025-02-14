@@ -69,7 +69,7 @@ get_apk() {
 }
 
 # Helper function to get download URL from APKMirror
-get_download_url() {ii
+get_download_url() {
     local page_url=$1
     local download_page=$(download_file "$page_url" -)
     echo "$download_page" | grep -o 'https://.*downloadapk.*' | head -n1
