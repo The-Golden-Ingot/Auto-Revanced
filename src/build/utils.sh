@@ -19,6 +19,9 @@ green_log() {
 red_log() {
     echo -e "\e[31m$1\e[0m"
 }
+yellow_log() {
+    echo -e "\e[33m$1\e[0m"
+}
 
 #################################################
 
@@ -92,7 +95,9 @@ get_patches_key() {
 	if [ -f "$key_path" ]; then
 		echo "--keystore=\"$key_path\" --custom-keystore"
 	else
-		echo "--keystore=./src/_ks.keystore"  # Default fallback
+		# Fallback to default keystore with warning
+		yellow_log "[!] Using default keystore for $1"
+		echo "--keystore=./src/_ks.keystore"  
 	fi
 }
 
@@ -369,10 +374,13 @@ split_arch() {
             $(get_patches_key $2) --force \
             --legacy-options=./src/options/$2.json $excludePatches$includePatches \
             --out=./release/$1-${archs[i]}-$2.apk\
-            ./download/$1.apk
+            ./download/$1.apk || {
+                red_log "[-] Patching failed for $1-${archs[i]}"
+                return 1  # Continue with other architectures
+            }
         else
             red_log "[-] Not found $1.apk"
-            exit 1
+            return 1
         fi
     else
         red_log "[-] Missing APK file: ./download/$1.$bundle_ext"
