@@ -37,7 +37,7 @@ build_youtube() {
     
     # Get base APK if not already downloaded
     if [ ! -f "${DOWNLOAD_DIR}/youtube-beta.apk" ]; then
-        get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
+        get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube" "$version"
     fi
     
     # Apply patches with architecture-specific options
@@ -53,6 +53,10 @@ main() {
     for arch in "${!ARCH_CONFIGS[@]}"; do
         build_youtube "$arch" "${ARCH_CONFIGS[$arch]}"
     done
+
+    # After main build loop
+    split_editor "youtube" "youtube-arm64-v8a" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+    apply_patch_set "youtube-arm64-v8a" "youtube-anddea" "" "inotia"
 }
 
 # Execute main function
