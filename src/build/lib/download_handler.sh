@@ -3,6 +3,73 @@
 source "src/build/lib/utils.sh"
 source "src/build/lib/config.sh"
 
+# Download APK from APKMirror
+get_apk() {
+    local pkg_name=$1
+    local output_name=$2
+    local app_type=$3
+    local apkmirror_dlurl=$4
+    local bundle_type=${5:-""}  # Default to empty string if not provided
+    local version=${6:-""}      # Default to empty string if not provided
+    
+    green_log "[+] Building ${output_name}..."
+    
+    # Check if APK already exists
+    if [ -f "./download/${output_name}.apk" ]; then
+        return 0
+    fi
+    
+    # Construct APKMirror URL
+    local base_url="https://www.apkmirror.com"
+    local version_url
+    
+    # Get version-specific URL if version is provided
+    if [ -n "$version" ]; then
+        version_url="${base_url}/apk/${apkmirror_dlurl}/${app_type}-${version}-release/"
+        green_log "[+] Attempting download of ${pkg_name} version: ${version}"
+    else
+        # Get latest version URL
+        version_url="${base_url}/uploads/?appcategory=${pkg_name}"
+    fi
+    
+    # Get download page URL
+    local download_url=$(wget -qO- "$version_url" | $pup 'a[href*="/download/"] attr{href}' | head -n 1)
+    if [ -z "$download_url" ]; then
+        red_log "[-] Failed to find download URL"
+        return 1
+    fi
+    
+    # Get APK download link
+    local apk_url="${base_url}${download_url}"
+    local final_url=$(wget -qO- "$apk_url" | $pup 'a[href*="/download/"].downloadButton attr{href}' | head -n 1)
+    if [ -z "$final_url" ]; then
+        red_log "[-] Failed to get final download URL"
+        return 1
+    fi
+    
+    # Download APK
+    green_log "[+] Downloading APK..."
+    download_file "${base_url}${final_url}" "${output_name}.apk"
+    
+    # Handle bundle if needed
+    if [ "$bundle_type" = "Bundle_extract" ] && [ -f "./download/${output_name}.apk" ]; then
+        green_log "[+] Extracting bundle..."
+        mkdir -p "./download/${output_name}-bundle"
+        unzip -q "./download/${output_name}.apk" -d "./download/${output_name}-bundle"
+        local base_apk=$(find "./download/${output_name}-bundle" -name "base.apk")
+        [ -f "$base_apk" ] && mv "$base_apk" "./download/${output_name}.apk"
+    fi
+    
+    # Verify download
+    if [ ! -f "./download/${output_name}.apk" ]; then
+        red_log "[-] Failed to download APK"
+        return 1
+    fi
+    
+    green_log "[+] Successfully downloaded ${output_name}"
+    return 0
+}
+
 # GitHub download utilities
 dl_gh() {
     local repo=$1
@@ -20,7 +87,6 @@ dl_gh() {
         api_response=$(fetch_github_release "$owner" "$repo_name" "")
     fi
     
-    # Download assets with improved jq filter to handle both object and array responses
     echo "$api_response" | jq -r 'if type=="array" then .[] else . end | .assets[] | select(.name | test("\\.(jar|apk|rvp)$")) | .browser_download_url' | \
     while read -r url; do
         local filename=$(basename "$url")
@@ -38,77 +104,6 @@ format_version() {
     
     # Remove any whitespace and replace dots with hyphens
     echo "$version" | tr -d ' ' | sed 's/\./-/g'
-}
-
-# APK Mirror download utilities
-get_apk() {
-    local pkg_name=$1
-    local output_name=$2
-    local app_type=$3
-    local apkmirror_dlurl=$4
-    local bundle_type=${5:-""}  # Default to empty string if not provided
-    local version=${6:-""}      # Default to empty string if not provided
-    local attempt=0
-    local base_apk
-    
-    # Set default app_type if not provided
-    [[ -z "$app_type" ]] && app_type="apk"
-    
-    while [ $attempt -lt 10 ]; do
-        if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            local upload_tail="?$( [[ "$pkg_name" == "duolingo" ]] && echo "devcategory=" || echo "appcategory=" )"
-            version=$(download_file "https://www.apkmirror.com/uploads/$upload_tail$pkg_name" - | \
-                $pup 'div.listWidget a.accent_color[title*="APK"] text{}' | \
-                grep -oP '[\d\.]+(?:-[\w\d]+)?' | \
-                sort -Vr | \
-                sed -n "$((attempt + 1))p")
-        fi
-        
-        # Don't format version if it's explicitly provided
-        if [[ -z "$6" ]]; then
-            version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
-        fi
-        
-        green_log "[+] Attempting download of $pkg_name version: $version"
-        
-        # Fix URL construction to match APKMirror's format
-        local dl_url
-        if [[ "$app_type" == "Bundle" ]] || [[ "$app_type" == "Bundle_extract" ]]; then
-            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apkmirror_dlurl/$pkg_name-$version-release/")
-        else
-            dl_url=$(get_download_url "https://www.apkmirror.com/apk/$apkmirror_dlurl/$pkg_name-$version-release/")
-        fi
-        
-        green_log "[+] Trying URL: $dl_url"
-        
-        if [ -n "$dl_url" ]; then
-            if download_file "$dl_url" "$output_name.$([[ "$app_type" =~ Bundle ]] && echo "apkm" || echo "apk")"; then
-                green_log "[+] Successfully downloaded $output_name"
-                
-                # Handle bundle extraction if needed
-                if [[ "$app_type" == "Bundle_extract" ]]; then
-                    local bundle_dir="./download/$(basename "$output_name.apkm" .apkm)"
-                    mkdir -p "$bundle_dir"
-                    unzip -q "./download/$output_name.apkm" -d "$bundle_dir"
-                    if [ $? -eq 0 ]; then
-                        green_log "[+] Successfully extracted bundle to $bundle_dir"
-                        return 0
-                    else
-                        red_log "[-] Failed to extract bundle"
-                        return 1
-                    fi
-                fi
-                return 0
-            fi
-        fi
-        
-        ((attempt++))
-        red_log "[-] Failed to download $output_name, trying another version"
-        unset version
-    done
-    
-    red_log "[-] No more versions to try. Failed download"
-    return 1
 }
 
 # Helper function to get download URL from APKMirror
