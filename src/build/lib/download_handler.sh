@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "src/build/lib/utils.sh"
+source "src/build/utils.sh"
 source "src/build/lib/config.sh"
 
 # Download APK from APKMirror
