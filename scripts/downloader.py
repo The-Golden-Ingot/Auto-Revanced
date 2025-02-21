@@ -20,17 +20,21 @@ def get_version_constraint(app_config):
     if app_config['package'] == "com.google.android.youtube":
         try:
             patches_url = app_config['patches']['source']
-            base_url = patches_url.replace("releases/latest", "releases")  # Fix URL construction
-            response = requests.get(f"{base_url}/download/patches.json")  # Correct endpoint
-            response.raise_for_status()  # Raise error for bad status codes
-            patches_json = response.json()
-            
-            # Find latest compatible version for YouTube
-            for patch in patches_json:
-                if "compatiblePackages" in patch:
-                    for pkg, versions in patch["compatiblePackages"].items():
-                        if pkg == app_config['package'] and versions:
-                            return sorted(versions)[-1]
+            # Get the latest release tag
+            response = requests.get(patches_url, allow_redirects=False)
+            if response.status_code == 302:  # GitHub redirects 'latest' to actual release
+                actual_release = response.headers['Location'].split('/')[-1]
+                base_url = patches_url.replace("latest", actual_release)
+                patches_response = requests.get(f"{base_url}/patches.json")
+                patches_response.raise_for_status()
+                patches_json = patches_response.json()
+                
+                # Find latest compatible version for YouTube
+                for patch in patches_json:
+                    if "compatiblePackages" in patch:
+                        for pkg, versions in patch["compatiblePackages"].items():
+                            if pkg == app_config['package'] and versions:
+                                return sorted(versions)[-1]
         except Exception as e:
             print(f"Error fetching patches.json: {e}")
             return app_config.get('version', 'latest')
