@@ -97,22 +97,26 @@ def check_updates():
     return updates
 
 def update_lockfile(updates):
+    if not updates:
+        logger.warning("No updates to write to versions.lock")
+        return
+        
     lock = {}
     try:
         with open("versions.lock") as f:
             lock = yaml.safe_load(f) or {}
     except FileNotFoundError:
-        pass
-        
+        logger.info("Creating new versions.lock file")
+    
     for app, data in updates.items():
         lock[app] = {
-            'apk_version': data['apk']['latest'],
-            'patch_version': data['patch']['latest'],
-            'last_checked': data['updated'],
+            'apk_version': f"{data['apk']['latest']} {data['patch']['latest']}", # Format: "apk_version patch_version"
+            'last_checked': data['updated']
         }
         
     with open("versions.lock", "w") as f:
-        yaml.safe_dump(lock, f)
+        yaml.safe_dump(lock, f, default_flow_style=False)
+    logger.info(f"Updated versions.lock with: {lock}")
 
 if __name__ == "__main__":
     updates = check_updates()

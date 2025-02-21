@@ -169,36 +169,27 @@ jobs:
       run: |
         mkdir -p ${{ env.DIST_DIR }}
         
-        # Get latest release info (including pre-releases) and asset names
-        set -euxo pipefail  # Enable verbose output and error checking
-        
+        # Download latest patches and CLI
         release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
         patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
         patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
         
-        # Get CLI release info and download URL
-        cli_release_info=$(curl -s "https://api.github.com/repos/inotia00/revanced-cli/releases/latest")
-        cli_version=$(echo "$cli_release_info" | jq -r '.tag_name' | sed 's/^v//')
-        cli_jar_url=$(echo "$cli_release_info" | jq -r '.assets[] | select(.name | startswith("revanced-cli-") and endswith("-all.jar")) | .browser_download_url')
-        
         wget -nv "$patches_rvp_url"
         wget -nv "$patches_json_url"
-        wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"  # Save with consistent name for patcher.py
+        wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"
         
         if [ -f "versions.lock" ]; then
           versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ matrix.app }}']['apk_version'])")
           app_version=$(echo $versions | cut -d' ' -f1)
           patch_version=$(echo $versions | cut -d' ' -f2)
-          
-          # Add debug output and error handling
-          echo "Starting patching process for ${{ matrix.app }}"
-          python -v scripts/patcher.py --app ${{ matrix.app }} --version $app_version --patch-version $patch_version || {
-            echo "::error::Patching failed for ${{ matrix.app }}"
-            exit 1
-          }
         else
-          echo "::warning::No versions.lock file found, skipping versioned patching"
+          # Use latest versions when no lock file exists
+          app_version=$(python scripts/version_check.py --app ${{ matrix.app }} --get-latest)
+          patch_version=$(echo "$release_info" | jq -r .tag_name | sed 's/^v//')
         fi
+        
+        echo "Starting patching process for ${{ matrix.app }} (version: $app_version, patches: $patch_version)"
+        python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
         
     - name: Load build rules
       id: build-rules
@@ -226,13 +217,12 @@ jobs:
       continue-on-error: true
 
     - name: Create release
-      if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
-      uses: softprops/action-gh-release@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        files: ${{ env.DIST_DIR }}/*.apk
-        tag_name: patched-$(date +%s)
-        generate_release_notes: true
+      run: |
+        TAG_NAME="patched-$(date +%Y%m%d-%H%M%S)"  # Format: patched-20250221-230800
+        gh release create "$TAG_NAME" \
+          --title "Patched Apps $(date '+%Y-%m-%d')" \
+          --notes "Automated build of patched applications" \
+          ./dist/*.apk
 
     - name: Cleanup old artifacts
       uses: c-hive/gha-remove-artifacts@v1
