@@ -205,6 +205,12 @@ jobs:
           echo "::warning::No versions.lock file found, skipping versioned patching"
         fi
         
+    - name: Load build rules
+      id: build-rules
+      run: |
+        retention_days=$(python -c "import yaml; print(yaml.safe_load(open('configs/build_rules.yaml'))['global']['retention_days'])")
+        echo "retention_days=$retention_days" >> $GITHUB_OUTPUT
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -212,30 +218,32 @@ jobs:
         path: ${{ env.DIST_DIR }}/*.apk
         retention-days: ${{ steps.build-rules.outputs.retention_days }}
         
+    - name: Check versions
+      id: version-check
+      run: |
+        python scripts/version_check.py
+        # Set updates_found based on versions.json existence and content
+        if [ -f "versions.json" ] && [ "$(cat versions.json | jq 'length')" -gt 0 ]; then
+          echo "updates_found=1" >> $GITHUB_OUTPUT
+        else
+          echo "updates_found=0" >> $GITHUB_OUTPUT
+        fi
+      continue-on-error: true
+
     - name: Create release
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}  # Explicitly pass the token
+        token: ${{ secrets.GITHUB_TOKEN }}
         files: ${{ env.DIST_DIR }}/*.apk
         tag_name: patched-$(date +%s)
         generate_release_notes: true
-
-    - name: Load build rules
-      id: build-rules
-      run: |
-        retention_days=$(python -c "import yaml; print(yaml.safe_load(open('configs/build_rules.yaml'))['global']['retention_days'])")
-        echo "retention_days=$retention_days" >> $GITHUB_OUTPUT
 
     - name: Cleanup old artifacts
       uses: c-hive/gha-remove-artifacts@v1
       with:
         age: ${{ steps.build-rules.outputs.retention_days }} days
         skip: latest
-
-    - name: Check versions
-      run: python scripts/version_check.py
-      continue-on-error: true  # Allow workflow to continue even if some version checks fail
 
     - name: Build components
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
