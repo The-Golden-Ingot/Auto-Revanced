@@ -1,6 +1,7 @@
 import yaml
 import subprocess
 from pathlib import Path
+import requests
 
 CONFIG_DIR = Path("configs/apps")
 OUTPUT_DIR = "downloads"
@@ -13,19 +14,36 @@ def load_configs():
             configs[app_name] = yaml.safe_load(f)
     return configs
 
+def get_version_constraint(app_config):
+    """Get version constraint based on app package"""
+    # Only check patches.json for YouTube
+    if app_config['package'] == "com.google.android.youtube":
+        patches_url = app_config['patches']['source']
+        base_url = patches_url.rsplit('/', 1)[0]
+        response = requests.get(f"{base_url}/patches.json")
+        patches_json = response.json()
+        
+        # Find latest compatible version for YouTube
+        for patch in patches_json:
+            if "compatiblePackages" in patch:
+                for pkg, versions in patch["compatiblePackages"].items():
+                    if pkg == app_config['package'] and versions:
+                        return sorted(versions)[-1]
+    
+    # All other apps use latest version
+    return app_config.get('version', 'latest')
+
 def download_app(app_config, app_name):
+    version = get_version_constraint(app_config)
+    
     cmd = [
         "apkmd", "download",
-        app_config["org"],
-        app_config["repo"],
-        "--arch", app_config.get("arch", "universal"),
-        "--dpi", app_config.get("dpi", "nodpi"),
+        app_config['source']['org'],
+        app_config['source']['repo'],
+        "--version", version,
         "--out-dir", OUTPUT_DIR,
-        *app_config.get("apkmd_args", [])
+        *app_config['source'].get('args', [])
     ]
-    
-    if "version" in app_config:
-        cmd.extend(["--version", app_config["version"]])
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:

@@ -1,9 +1,23 @@
-org: reddit-inc
-repo: reddit
+# Reddit ReVanced Configuration
+name: "Reddit"
+package: "com.reddit.frontpage"
+
+# APK source configuration
+source:
+  org: reddit-inc
+  repo: reddit
+  args: ["--type", "standalone"]  # Download universal APK
+
+# Build settings
+build:
+  sdk: { min: 21, target: 33 }
+  optimize:
+    arch: ["universal"]  # Keep universal architecture
+    dpi: ["nodpi"]      # Keep universal DPI
+  version_track: true
+
+# Patch configuration
 patches:
   source: "https://github.com/anddea/revanced-patches/releases/latest"
-  include: 
-    - "RemoveAds"
-  exclude: []
-arch: universal
-dpi: nodpi 
+  include: ["RemoveAds"]
+  exclude: [] 

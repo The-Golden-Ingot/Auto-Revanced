@@ -12,25 +12,24 @@ def apply_patches(apk_path, app_config):
         str(apk_path)
     ]
     
-    # Add root installation flags if configured
-    if app_config.get('root_install', {}).get('enabled', False):
-        base_cmd.extend([
-            "-d", app_config['root_install']['device'],
-            "--mount",
-            *app_config['root_install']['flags']
-        ])
+    # Handle patch inclusion/exclusion
+    include_patches = app_config['patches'].get('include', [])
+    exclude_patches = app_config['patches'].get('exclude', [])
     
-    # Add patch inclusion/exclusion
-    base_cmd.extend([
-        "-e", ",".join(app_config['patches']['include']),
-        "-d", ",".join(app_config['patches']['exclude'])
-    ])
+    # Only add include flag if patches are specifically listed
+    if include_patches:
+        base_cmd.extend(["-e", ",".join(include_patches)])
     
-    # Add architecture stripping from build rules
-    with open("configs/build_rules.yaml") as f:
-        build_rules = yaml.safe_load(f)
-        for arch in build_rules['global']['architectures']['strip']:
+    # Always add exclude flag if there are exclusions
+    if exclude_patches:
+        base_cmd.extend(["-d", ",".join(exclude_patches)])
+    
+    # Add architecture optimization
+    for arch in app_config['build']['optimize'].get('arch', []):
+        if arch != "universal":
             base_cmd.extend(["--rip-lib", arch])
+            
+    # Additional DPI optimization can be added here if needed
     
     output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
     

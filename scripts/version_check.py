@@ -12,31 +12,54 @@ def get_patch_version(patch_url):
     response = requests.get(patch_url)
     return response.url.split('/')[-2]  # Extract version from release URL
 
+def get_compatible_version(package_name, patches_json):
+    """Get the latest compatible version for a package from patches.json"""
+    for patch in patches_json:
+        if "compatiblePackages" in patch:
+            for pkg, versions in patch["compatiblePackages"].items():
+                if pkg == package_name and versions:
+                    # Return the latest compatible version
+                    return sorted(versions)[-1]
+    return None
+
+def get_patches_json(patches_url):
+    """Download and parse patches.json from the releases"""
+    base_url = patches_url.rsplit('/', 1)[0]
+    response = requests.get(f"{base_url}/patches.json")
+    return response.json()
+
 def check_updates():
     updates = {}
     
-    # Check each app config file
     for config_file in Path("configs/apps").glob("*.yaml"):
         app_name = config_file.stem
         with open(config_file) as f:
             config = yaml.safe_load(f)
         
-        # APK Version check
+        # Special handling only for YouTube
+        if config['package'] == "com.google.android.youtube":
+            # Get patches.json for YouTube version compatibility
+            patches_json = get_patches_json(config['patches']['source'])
+            latest_compatible = get_compatible_version(config['package'], patches_json)
+            
+            if latest_compatible:
+                current_apk = config.get('version', 'latest')
+                if current_apk != latest_compatible:
+                    updates[app_name] = {
+                        'apk': {'current': current_apk, 'latest': latest_compatible},
+                        'patch': {'current': 'latest', 'latest': 'latest'},
+                        'updated': datetime.utcnow().isoformat()
+                    }
+            continue
+        
+        # All other apps use latest version
         current_apk = config.get('version', 'latest')
-        latest_apk = get_latest_version(config['org'], config['repo'])
+        latest_apk = get_latest_version(config['source']['org'], config['source']['repo'])
         
-        # Patch Version check
-        patch_source = config['patches']['source']
-        current_patch = config['patches'].get('version', 'unknown')
-        latest_patch = get_patch_version(patch_source)
-        
-        apk_updated = current_apk != latest_apk
-        patch_updated = current_patch != latest_patch
-        
-        if apk_updated or patch_updated:
+        if current_apk != latest_apk:
             updates[app_name] = {
                 'apk': {'current': current_apk, 'latest': latest_apk},
-                'patch': {'current': current_patch, 'latest': latest_patch},
+                'patch': {'current': 'latest', 'latest': 'latest'},
                 'updated': datetime.utcnow().isoformat()
             }
     
