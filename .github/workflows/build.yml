@@ -103,7 +103,13 @@ jobs:
     - name: Apply ReVanced patches
       run: |
         mkdir -p ${{ env.DIST_DIR }}
-        wget -q https://github.com/anddea/revanced-patches/releases/latest/download/patches.rvp
+        
+        # Get latest release info (including pre-releases) and asset names
+        release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
+        patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
+        patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.rvp") | .browser_download_url')
+        
+        wget -q "$patches_rvp_url"
         wget -q https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
         
         if [ -f "versions.lock" ]; then
