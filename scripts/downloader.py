@@ -56,11 +56,21 @@ def get_compatible_versions(app_package: str) -> list:
         with open("patches.json") as f:
             patches = json.load(f)
             
+        if not isinstance(patches, list):
+            logger.error("patches.json does not contain a list of patches")
+            return []
+            
         # Collect all versions from any patch targeting this package
         all_versions = set()
         for patch in patches:
-            pkg_versions = patch.get("compatiblePackages", {}).get(app_package, [])
-            all_versions.update(pkg_versions)  # Union of all versions
+            if not isinstance(patch, dict):
+                continue
+            compatible_packages = patch.get("compatiblePackages", {})
+            if not isinstance(compatible_packages, dict):
+                continue
+            pkg_versions = compatible_packages.get(app_package, [])
+            if isinstance(pkg_versions, list):
+                all_versions.update(pkg_versions)  # Union of all versions
             
         if not all_versions:
             logger.warning(f"No compatible versions found for {app_package}")
@@ -69,6 +79,12 @@ def get_compatible_versions(app_package: str) -> list:
         # Sort versions naturally (18.40.34 > 18.33.40 etc)
         return natsorted(all_versions)
         
+    except FileNotFoundError:
+        logger.error("patches.json not found")
+        raise RuntimeError("patches.json not found - ensure it is downloaded before running downloader")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in patches.json: {e}")
+        raise RuntimeError(f"Invalid JSON in patches.json: {e}")
     except Exception as e:
         logger.error(f"Failed to process patches.json: {str(e)}")
         raise RuntimeError(f"Failed to process patches.json: {e}")
