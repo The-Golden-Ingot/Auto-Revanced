@@ -1,8 +1,12 @@
 import yaml
 import subprocess
 from pathlib import Path
+import argparse
 
 def apply_patches(apk_path, app_config):
+    # Define output_apk before using it in base_cmd
+    output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
+    
     base_cmd = [
         "java", "-jar", "revanced-cli-all.jar", "patch",
         "-p", "patches.rvp",
@@ -25,13 +29,10 @@ def apply_patches(apk_path, app_config):
         base_cmd.extend(["-d", ",".join(exclude_patches)])
     
     # Add architecture optimization
-    for arch in app_config['build']['optimize'].get('arch', []):
-        if arch != "universal":
-            base_cmd.extend(["--rip-lib", arch])
-            
-    # Additional DPI optimization can be added here if needed
-    
-    output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
+    if 'build' in app_config and 'optimize' in app_config['build']:
+        for arch in app_config['build']['optimize'].get('arch', []):
+            if arch != "universal":
+                base_cmd.extend(["--rip-lib", arch])
     
     result = subprocess.run(base_cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -40,15 +41,26 @@ def apply_patches(apk_path, app_config):
     return output_apk
 
 if __name__ == "__main__":
-    # Update to use new config structure
-    app_name = apk_path.stem.split("_")[0]
-    config_file = Path("configs/apps") / f"{app_name}.yaml"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--app', required=True)
+    parser.add_argument('--version')
+    parser.add_argument('--patch-version')
+    args = parser.parse_args()
     
+    config_file = Path("configs/apps") / f"{args.app}.yaml"
     with open(config_file) as f:
         app_config = yaml.safe_load(f)
     
-    for apk in Path("downloads").glob("*_merged.apk"):
-        app_name = apk.stem.split("_")[0]
-        print(f"Patching {app_name}...")
+    # Look for merged APKs
+    apks = list(Path("downloads").glob(f"{args.app}*_merged.apk"))
+    if not apks:
+        # Try non-merged APKs
+        apks = list(Path("downloads").glob(f"{args.app}*.apk"))
+    
+    if not apks:
+        raise RuntimeError(f"No APK found for {args.app}")
+        
+    for apk in apks:
+        print(f"Patching {apk.name}...")
         patched = apply_patches(apk, app_config)
         print(f"Patched APK: {patched.name}") 
