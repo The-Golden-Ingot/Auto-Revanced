@@ -106,20 +106,20 @@ jobs:
 
     - name: Download APKs
       env:
-        PATH: ${{ github.workspace }}/scripts:$PATH
+        PATH: /usr/bin:${{ github.workspace }}/scripts:$PATH
       run: |
         # Create downloads directory with proper permissions
-        mkdir -p downloads
-        chmod 777 downloads
+        /usr/bin/mkdir -p downloads
+        /usr/bin/chmod 777 downloads
         
         # Run downloader with debug
-        python scripts/downloader.py --app ${{ matrix.app }} --debug
+        /usr/bin/python3 scripts/downloader.py --app ${{ matrix.app }} --debug
         
         # Verify downloads
         echo "Downloaded files:"
-        find downloads -name '*.apk' -ls
+        /usr/bin/find downloads -name '*.apk' -ls
         
-        if [ -z "$(find downloads -name '*.apk')" ]; then
+        if [ -z "$(/usr/bin/find downloads -name '*.apk')" ]; then
           echo "::error::No APKs downloaded for ${{ matrix.app }}"
           exit 1
         fi
