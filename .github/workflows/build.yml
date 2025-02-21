@@ -15,11 +15,6 @@ on:
         type: boolean
         required: false
         default: false
-      reddit:
-        description: 'Build Reddit'
-        type: boolean
-        required: false
-        default: false
 
 env:
   CONFIG_DIR: configs
