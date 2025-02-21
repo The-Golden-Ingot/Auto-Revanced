@@ -2,6 +2,10 @@ import yaml
 import requests
 from datetime import datetime
 from pathlib import Path
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_latest_version(org, repo):
     url = f"https://api.apkmirror.com/v2/apps/{org}/{repo}/"
@@ -22,11 +26,23 @@ def get_compatible_version(package_name, patches_json):
                     return sorted(versions)[-1]
     return None
 
-def get_patches_json(patches_url):
-    """Download and parse patches.json from the releases"""
-    base_url = patches_url.rsplit('/', 1)[0]
-    response = requests.get(f"{base_url}/patches.json")
-    return response.json()
+def get_patches_json(source_url: str) -> dict:
+    """Get patches.json from the source URL"""
+    try:
+        # Use local patches.json if it exists (downloaded by workflow)
+        if Path("patches.json").exists():
+            with open("patches.json") as f:
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+        
+        # Fallback to downloading from URL
+        response = requests.get(source_url)
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, json.JSONDecodeError) as e:
+        logger.error(f"Failed to get patches.json: {e}")
+        return {}
 
 def check_updates():
     updates = {}

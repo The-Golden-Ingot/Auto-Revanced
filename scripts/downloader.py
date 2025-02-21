@@ -53,11 +53,21 @@ def generate_apkmd_config(app_config: dict) -> dict:
 def get_compatible_versions(app_package: str) -> list:
     """Get all compatible versions from any patch for a package"""
     try:
-        with open("patches.json") as f:
-            patches = json.load(f)
+        # Get patches.json from the workflow's downloaded file
+        patches_file = Path("patches.json")
+        if not patches_file.exists():
+            logger.error("patches.json not found in current directory")
+            return []
+            
+        with open(patches_file) as f:
+            content = f.read().strip()  # Remove any whitespace
+            if not content:
+                logger.error("patches.json is empty")
+                return []
+            patches = json.loads(content)
             
         if not isinstance(patches, list):
-            logger.error("patches.json does not contain a list of patches")
+            logger.error("patches.json does not contain a list")
             return []
             
         # Collect all versions from any patch targeting this package
@@ -70,7 +80,7 @@ def get_compatible_versions(app_package: str) -> list:
                 continue
             pkg_versions = compatible_packages.get(app_package, [])
             if isinstance(pkg_versions, list):
-                all_versions.update(pkg_versions)  # Union of all versions
+                all_versions.update(pkg_versions)
             
         if not all_versions:
             logger.warning(f"No compatible versions found for {app_package}")
@@ -79,15 +89,12 @@ def get_compatible_versions(app_package: str) -> list:
         # Sort versions naturally (18.40.34 > 18.33.40 etc)
         return natsorted(all_versions)
         
-    except FileNotFoundError:
-        logger.error("patches.json not found")
-        raise RuntimeError("patches.json not found - ensure it is downloaded before running downloader")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in patches.json: {e}")
-        raise RuntimeError(f"Invalid JSON in patches.json: {e}")
+        return []
     except Exception as e:
         logger.error(f"Failed to process patches.json: {str(e)}")
-        raise RuntimeError(f"Failed to process patches.json: {e}")
+        return []
 
 def download_apk(app_name: str, debug: bool = False):
     logger.info(f"Starting download for {app_name}")
