@@ -5,6 +5,7 @@ import subprocess
 import argparse
 import sys
 import logging
+from natsort import natsorted
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -49,28 +50,52 @@ def generate_apkmd_config(app_config: dict) -> dict:
     except KeyError as e:
         raise RuntimeError(f"Missing required config key: {e}")
 
+def get_compatible_versions(app_package: str) -> list:
+    """Get all compatible versions from patches.json for a package"""
+    try:
+        with open("patches.json") as f:
+            patches = json.load(f)
+            
+        # Collect all versions from all patches targeting this package
+        all_versions = set()
+        for patch in patches:
+            pkg_versions = patch.get("compatiblePackages", {}).get(app_package, [])
+            all_versions.update(pkg_versions)
+            
+        if not all_versions:
+            return []
+            
+        # Sort versions naturally (18.40.34 > 18.33.40 etc)
+        return natsorted(all_versions)
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to process patches.json: {e}")
+
 def download_apk(app_name: str, debug: bool = False):
     logger.info(f"Starting download for {app_name}")
     config = load_config(app_name)
     
-    # Extract required parameters from config
+    compatible_versions = get_compatible_versions(config['package'])
+    if not compatible_versions:
+        raise RuntimeError(f"No patch-compatible versions found for {config['package']}")
+    
+    # Get latest version from sorted list
+    latest_compatible = compatible_versions[-1]
+    logger.info(f"Latest patch-compatible version: {latest_compatible}")
+    
+    # Existing download logic
     org = config['source']['org']
     repo = config['source']['repo']
-    version = config.get('version', 'stable')
-    apk_type = config['source'].get('type', 'apk')
-    arch = config.get('arch', 'universal')
-    if isinstance(arch, list):
-        arch = arch[0]  # Take first architecture if multiple are specified
     
-    # Build command with required positional args first
+    # Update command to use this specific version
     cmd = [
         "apkmd",
         "download",
         org,
         repo,
-        "--version", version,
-        "--arch", arch,
-        "--type", apk_type,
+        "--version", latest_compatible,
+        "--arch", config.get('arch', 'universal'),
+        "--type", config['source'].get('type', 'apk'),
         "--outdir", "downloads",
         "--outfile", config.get('package', repo)
     ]
