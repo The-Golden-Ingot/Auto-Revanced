@@ -21,7 +21,7 @@ runs:
     - id: set-input-schema
       shell: bash
       run: |
-        schema=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c 'split("\n")[:-1]' | jq '{
+        schema=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c 'split("\n")[:-1]' | jq -c '{
           type: "object",
           properties: (
             . | map({
@@ -34,4 +34,4 @@ runs:
             }) | add
           )
         }')
-        echo "schema=$schema" >> $GITHUB_OUTPUT 
+        echo "schema=${schema}" >> $GITHUB_OUTPUT 
