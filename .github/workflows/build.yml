@@ -233,12 +233,9 @@ jobs:
         age: ${{ steps.build-rules.outputs.retention_days }} days
         skip: latest
 
-    - name: Check for updates
-      id: version-check
-      run: |
-        python scripts/version_check.py
-        updates=$(jq -r '. | length' versions.json)
-        echo "updates_found=$updates" >> $GITHUB_OUTPUT
+    - name: Check versions
+      run: python scripts/version_check.py
+      continue-on-error: true  # Allow workflow to continue even if some version checks fail
 
     - name: Build components
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'

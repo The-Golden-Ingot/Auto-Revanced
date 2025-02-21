@@ -16,12 +16,11 @@ def get_latest_version(org, repo):
         version = json_data.get('data', {}).get('version')
         if not version:
             logger.warning(f"Latest version not found in response from {url}")
-            return "latest"
+            return None
         return version
     except requests.RequestException as e:
         logger.error(f"Failed to fetch latest version from {url}: {e}")
-        # Return the default fallback so the update check doesn't fail
-        return "latest"
+        return None
 
 def get_patch_version(patch_url):
     response = requests.get(patch_url)
@@ -98,18 +97,18 @@ def check_updates():
     return updates
 
 def update_lockfile(updates):
+    lock = {}
     try:
         with open("versions.lock") as f:
             lock = yaml.safe_load(f) or {}
     except FileNotFoundError:
-        lock = {}
+        pass
         
     for app, data in updates.items():
         lock[app] = {
             'apk_version': data['apk']['latest'],
             'patch_version': data['patch']['latest'],
             'last_checked': data['updated'],
-            'patch_version': lock.get(app, {}).get('patch_version', 'unknown')
         }
         
     with open("versions.lock", "w") as f:
