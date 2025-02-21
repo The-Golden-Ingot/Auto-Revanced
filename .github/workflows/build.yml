@@ -92,7 +92,18 @@ jobs:
       run: |
         python scripts/downloader.py
         
+    - name: Check for split APKs
+      id: check-splits
+      run: |
+        config_type=$(python -c "import yaml; print(yaml.safe_load(open('configs/apps/${{ matrix.app }}.yaml'))['source'].get('type', 'apk'))")
+        needs_merge=false
+        if [[ "$config_type" == "bundle" || "$config_type" == "split" ]]; then
+          needs_merge=true
+        fi
+        echo "needs_merge=$needs_merge" >> $GITHUB_OUTPUT
+        
     - name: Merge split APKs
+      if: steps.check-splits.outputs.needs_merge == 'true'
       run: |
         # Get latest release info and asset name
         release_info=$(curl -s https://api.github.com/repos/REAndroid/APKEditor/releases/latest)
