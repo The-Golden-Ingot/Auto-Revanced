@@ -14,4 +14,4 @@ patches:
   # Explicitly specify patches to include, empty means use all available
   include: []
   # Always exclude these patches
-  exclude: ["GmsCore support"] 
+  exclude: [] 
