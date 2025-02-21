@@ -108,6 +108,24 @@ jobs:
         echo "Created downloads directory with permissions:"
         ls -la downloads
 
+    - name: Download patches and CLI
+      run: |
+        # Get latest release info (including pre-releases) and asset names
+        set -euxo pipefail  # Enable verbose output and error checking
+        
+        release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
+        patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
+        patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
+        
+        # Get CLI release info and download URL
+        cli_release_info=$(curl -s "https://api.github.com/repos/inotia00/revanced-cli/releases/latest")
+        cli_version=$(echo "$cli_release_info" | jq -r '.tag_name' | sed 's/^v//')
+        cli_jar_url=$(echo "$cli_release_info" | jq -r '.assets[] | select(.name | startswith("revanced-cli-") and endswith("-all.jar")) | .browser_download_url')
+        
+        wget -nv "$patches_rvp_url"
+        wget -nv "$patches_json_url"
+        wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"
+
     - name: Download APKs
       env:
         PATH: /usr/bin:${{ github.workspace }}/scripts:$PATH
