@@ -20,8 +20,8 @@ def get_version_constraint(app_config):
     if app_config['package'] == "com.google.android.youtube":
         try:
             patches_url = app_config['patches']['source']
-            base_url = patches_url.rsplit('/', 1)[0]
-            response = requests.get(f"{base_url}/patches.json")
+            base_url = patches_url.replace("releases/latest", "releases")  # Fix URL construction
+            response = requests.get(f"{base_url}/download/patches.json")  # Correct endpoint
             response.raise_for_status()  # Raise error for bad status codes
             patches_json = response.json()
             

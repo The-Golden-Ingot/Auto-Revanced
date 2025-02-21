@@ -72,9 +72,13 @@ jobs:
           ${{ env.DIST_DIR }}
         key: ${{ runner.os }}-apks-${{ hashFiles('configs/*.yaml') }}
         
+    - name: Install dependencies
+      run: |
+        pip install apkmd  # Install the APK download tool
+        sudo apt-get install -y xmlstarlet  # For APK metadata parsing
+
     - name: Download APKs
       run: |
-        pip install pyyaml
         python scripts/downloader.py
         
     - name: Merge split APKs
