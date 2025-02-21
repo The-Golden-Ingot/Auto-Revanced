@@ -51,24 +51,26 @@ def generate_apkmd_config(app_config: dict) -> dict:
         raise RuntimeError(f"Missing required config key: {e}")
 
 def get_compatible_versions(app_package: str) -> list:
-    """Get all compatible versions from patches.json for a package"""
+    """Get all compatible versions from any patch for a package"""
     try:
         with open("patches.json") as f:
             patches = json.load(f)
             
-        # Collect all versions from all patches targeting this package
+        # Collect all versions from any patch targeting this package
         all_versions = set()
         for patch in patches:
             pkg_versions = patch.get("compatiblePackages", {}).get(app_package, [])
-            all_versions.update(pkg_versions)
+            all_versions.update(pkg_versions)  # Union of all versions
             
         if not all_versions:
+            logger.warning(f"No compatible versions found for {app_package}")
             return []
             
         # Sort versions naturally (18.40.34 > 18.33.40 etc)
         return natsorted(all_versions)
         
     except Exception as e:
+        logger.error(f"Failed to process patches.json: {str(e)}")
         raise RuntimeError(f"Failed to process patches.json: {e}")
 
 def download_apk(app_name: str, debug: bool = False):
