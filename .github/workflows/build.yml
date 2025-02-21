@@ -10,6 +10,16 @@ on:
         type: boolean
         required: false
         default: false
+      youtube:  # Default apps, will be merged with dynamic ones
+        description: 'Build YouTube'
+        type: boolean
+        required: false
+        default: false
+      reddit:
+        description: 'Build Reddit'
+        type: boolean
+        required: false
+        default: false
 
 env:
   CONFIG_DIR: configs
@@ -21,7 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.list-apps.outputs.matrix }}
-      choices: ${{ steps.list-apps.outputs.choices }}
     steps:
       - uses: actions/checkout@v3
       - id: list-apps
@@ -44,7 +53,7 @@ jobs:
         if [[ "${{ github.event_name }}" == "schedule" ]]; then
           echo "build=true" >> $GITHUB_OUTPUT
         else
-          echo "build=${{ inputs[format('build_{0}', matrix.app)] }}" >> $GITHUB_OUTPUT
+          echo "build=${{ github.event.inputs[matrix.app] || 'false' }}" >> $GITHUB_OUTPUT
         fi
 
     - name: Set up JDK 17

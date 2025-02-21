@@ -5,9 +5,9 @@ outputs:
   matrix:
     description: "JSON array of available apps"
     value: ${{ steps.set-matrix.outputs.matrix }}
-  choices:
-    description: "Input choices for workflow_dispatch"
-    value: ${{ steps.set-choices.outputs.choices }}
+  input_schema:
+    description: "Input schema for workflow_dispatch"
+    value: ${{ steps.set-input-schema.outputs.schema }}
 
 runs:
   using: "composite"
@@ -18,13 +18,20 @@ runs:
         apps=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c 'split("\n")[:-1]')
         echo "matrix=$apps" >> $GITHUB_OUTPUT
         
-    - id: set-choices
+    - id: set-input-schema
       shell: bash
       run: |
-        choices=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c '{
-          type: "boolean",
-          description: "Build " + .,
-          required: false,
-          default: false
-        }' | jq -s 'INDEX(.description)')
-        echo "choices=$choices" >> $GITHUB_OUTPUT 
+        schema=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c 'split("\n")[:-1]' | jq '{
+          type: "object",
+          properties: (
+            . | map({
+              (.): {
+                type: "boolean",
+                description: "Build \(.)",
+                required: false,
+                default: false
+              }
+            }) | add
+          )
+        }')
+        echo "schema=$schema" >> $GITHUB_OUTPUT 
