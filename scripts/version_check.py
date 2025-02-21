@@ -4,6 +4,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 import json
 import logging
+import argparse
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -119,11 +121,38 @@ def update_lockfile(updates):
     logger.info(f"Updated versions.lock with: {lock}")
 
 if __name__ == "__main__":
-    updates = check_updates()
-    if updates:
-        print("Updates available:")
-        for app, data in updates.items():
-            print(f"{app}: APK {data['apk']['current']} → {data['apk']['latest']}, Patch {data['patch']['current']} → {data['patch']['latest']}")
-        update_lockfile(updates)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--app", required=True, help="App identifier (e.g., youtube)")
+    # New flag to get the latest APK version
+    parser.add_argument("--get-latest", action="store_true", help="Output the latest APK version for the app")
+    args = parser.parse_args()
+
+    if args.get_latest:
+        # Read config from configs/apps/<app>.yaml
+        config_path = Path("configs", "apps", f"{args.app.lower()}.yaml")
+        if not config_path.exists():
+            logger.error(f"Config file for app '{args.app}' not found at {config_path}")
+            sys.exit(1)
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        source = config.get("source", {})
+        org = source.get("org")
+        repo = source.get("repo")
+        if not org or not repo:
+            logger.error("App config must include 'org' and 'repo' in the source field")
+            sys.exit(1)
+        version = get_latest_version(org, repo)
+        if version:
+            print(version)  # This will output a valid APK version (e.g., "19.44.39")
+            sys.exit(0)
+        else:
+            sys.exit(1)
     else:
-        print("All apps up to date") 
+        updates = check_updates()
+        if updates:
+            print("Updates available:")
+            for app, data in updates.items():
+                print(f"{app}: APK {data['apk']['current']} → {data['apk']['latest']}, Patch {data['patch']['current']} → {data['patch']['latest']}")
+            update_lockfile(updates)
+        else:
+            print("All apps up to date") 
