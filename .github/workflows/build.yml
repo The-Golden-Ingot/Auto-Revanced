@@ -69,7 +69,7 @@ jobs:
         distribution: 'zulu'
         
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v4
       with:
         python-version: '3.12'
         
@@ -113,11 +113,11 @@ jobs:
         PATH: /usr/bin:${{ github.workspace }}/scripts:$PATH
       run: |
         # Create downloads directory with proper permissions
-        /usr/bin/mkdir -p downloads
-        /usr/bin/chmod 777 downloads
+        mkdir -p downloads
+        chmod 777 downloads
         
         # Run downloader with debug
-        /usr/bin/python3 scripts/downloader.py --app ${{ matrix.app }} --debug
+        python scripts/downloader.py --app ${{ matrix.app }} --debug
         
         # Verify downloads
         echo "Downloaded files:"
