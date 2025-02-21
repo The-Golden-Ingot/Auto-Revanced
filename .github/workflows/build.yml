@@ -116,19 +116,28 @@ jobs:
         mkdir -p ${{ env.DIST_DIR }}
         
         # Get latest release info (including pre-releases) and asset names
+        set -euxo pipefail  # Enable verbose output and error checking
+        
         release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
         patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
         patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.rvp") | .browser_download_url')
         
-        wget -q "$patches_rvp_url"
-        wget -q https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
+        wget -nv "$patches_rvp_url"
+        wget -nv https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
         
         if [ -f "versions.lock" ]; then
           versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ matrix.app }}']['apk_version'])")
           app_version=$(echo $versions | cut -d' ' -f1)
           patch_version=$(echo $versions | cut -d' ' -f2)
           
-          python scripts/patcher.py --app ${{ matrix.app }} --version $app_version --patch-version $patch_version
+          # Add debug output and error handling
+          echo "Starting patching process for ${{ matrix.app }}"
+          python -v scripts/patcher.py --app ${{ matrix.app }} --version $app_version --patch-version $patch_version || {
+            echo "::error::Patching failed for ${{ matrix.app }}"
+            exit 1
+          }
+        else
+          echo "::warning::No versions.lock file found, skipping versioned patching"
         fi
         
     - name: Upload artifacts
