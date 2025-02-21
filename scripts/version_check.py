@@ -1,6 +1,7 @@
 import yaml
 import requests
 from datetime import datetime
+from pathlib import Path
 
 def get_latest_version(org, repo):
     url = f"https://api.apkmirror.com/v2/apps/{org}/{repo}/"
@@ -12,11 +13,14 @@ def get_patch_version(patch_url):
     return response.url.split('/')[-2]  # Extract version from release URL
 
 def check_updates():
-    with open("configs/applications.yaml") as f:
-        apps = yaml.safe_load(f)
-    
     updates = {}
-    for app, config in apps.items():
+    
+    # Check each app config file
+    for config_file in Path("configs/apps").glob("*.yaml"):
+        app_name = config_file.stem
+        with open(config_file) as f:
+            config = yaml.safe_load(f)
+        
         # APK Version check
         current_apk = config.get('version', 'latest')
         latest_apk = get_latest_version(config['org'], config['repo'])
@@ -30,7 +34,7 @@ def check_updates():
         patch_updated = current_patch != latest_patch
         
         if apk_updated or patch_updated:
-            updates[app] = {
+            updates[app_name] = {
                 'apk': {'current': current_apk, 'latest': latest_apk},
                 'patch': {'current': current_patch, 'latest': latest_patch},
                 'updated': datetime.utcnow().isoformat()

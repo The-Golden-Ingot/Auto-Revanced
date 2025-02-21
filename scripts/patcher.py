@@ -41,11 +41,15 @@ def apply_patches(apk_path, app_config):
     return output_apk
 
 if __name__ == "__main__":
-    with open("configs/applications.yaml") as f:
-        config = yaml.safe_load(f)
+    # Update to use new config structure
+    app_name = apk_path.stem.split("_")[0]
+    config_file = Path("configs/apps") / f"{app_name}.yaml"
+    
+    with open(config_file) as f:
+        app_config = yaml.safe_load(f)
     
     for apk in Path("downloads").glob("*_merged.apk"):
         app_name = apk.stem.split("_")[0]
         print(f"Patching {app_name}...")
-        patched = apply_patches(apk, config[app_name])
+        patched = apply_patches(apk, app_config)
         print(f"Patched APK: {patched.name}") 

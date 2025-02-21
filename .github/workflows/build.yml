@@ -51,18 +51,31 @@ jobs:
         wget https://github.com/REAndroid/APKEditor/releases/latest/download/APKEditor.jar
         python scripts/merger.py
         
+    - name: Select apps to build
+      id: app-selection
+      run: |
+        if [ "${{ inputs.app }}" = "all" ]; then
+          apps=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml)
+        else
+          apps="${{ inputs.app }}"
+        fi
+        echo "selected_apps=$apps" >> $GITHUB_OUTPUT
+
     - name: Apply ReVanced patches
       run: |
         mkdir -p ${{ env.DIST_DIR }}
         wget -q https://github.com/anddea/revanced-patches/releases/latest/download/patches.rvp
         wget -q https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
         
-        # Get version info from lockfile
-        versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ inputs.app }}']['apk_version'])")
-        app_version=$(echo $versions | cut -d' ' -f1)
-        patch_version=$(echo $versions | cut -d' ' -f2)
-        
-        python scripts/patcher.py --version $app_version --patch-version $patch_version
+        for app in ${{ steps.app-selection.outputs.selected_apps }}; do
+          if [ -f "versions.lock" ]; then
+            versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${app}']['apk_version'])")
+            app_version=$(echo $versions | cut -d' ' -f1)
+            patch_version=$(echo $versions | cut -d' ' -f2)
+            
+            python scripts/patcher.py --app ${app} --version $app_version --patch-version $patch_version
+          fi
+        done
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -100,4 +113,4 @@ jobs:
     - name: Build components
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       run: |
-        # Existing build steps 
+        # Existing build steps

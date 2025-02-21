@@ -1,0 +1,9 @@
+org: reddit-inc
+repo: reddit
+patches:
+  source: "https://github.com/anddea/revanced-patches/releases/latest"
+  include: 
+    - "RemoveAds"
+  exclude: []
+arch: universal
+dpi: nodpi 
