@@ -24,7 +24,8 @@ def get_version_constraint(app_config):
             response = requests.get(patches_url, allow_redirects=False)
             if response.status_code == 302:  # GitHub redirects 'latest' to actual release
                 actual_release = response.headers['Location'].split('/')[-1]
-                base_url = patches_url.replace("latest", actual_release)
+                # Construct correct download URL
+                base_url = f"https://github.com/anddea/revanced-patches/releases/download/{actual_release}"
                 patches_response = requests.get(f"{base_url}/patches.json")
                 patches_response.raise_for_status()
                 patches_json = patches_response.json()
