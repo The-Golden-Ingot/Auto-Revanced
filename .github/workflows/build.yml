@@ -32,7 +32,7 @@ jobs:
     outputs:
       matrix: ${{ steps.list-apps.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: list-apps
         uses: ./.github/actions/list-apps
 
@@ -45,7 +45,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Check if app should be built
       id: should-build
@@ -97,10 +97,11 @@ jobs:
         fi
         
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: patched-apks
         path: ${{ env.DIST_DIR }}/*.apk
+        retention-days: ${{ steps.build-rules.outputs.retention_days }}
         
     - name: Create release
       uses: softprops/action-gh-release@v1
