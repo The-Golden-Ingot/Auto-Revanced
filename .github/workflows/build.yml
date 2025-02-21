@@ -122,9 +122,14 @@ jobs:
         patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
         patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
         
+        # Get CLI release info and download URL
+        cli_release_info=$(curl -s "https://api.github.com/repos/inotia00/revanced-cli/releases/latest")
+        cli_version=$(echo "$cli_release_info" | jq -r '.tag_name' | sed 's/^v//')
+        cli_jar_url=$(echo "$cli_release_info" | jq -r '.assets[] | select(.name | startswith("revanced-cli-") and endswith("-all.jar")) | .browser_download_url')
+        
         wget -nv "$patches_rvp_url"
         wget -nv "$patches_json_url"
-        wget -nv https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
+        wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"  # Save with consistent name for patcher.py
         
         if [ -f "versions.lock" ]; then
           versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ matrix.app }}']['apk_version'])")
