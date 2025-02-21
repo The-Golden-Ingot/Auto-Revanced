@@ -19,9 +19,8 @@ def get_version_constraint(app_config):
     # Only check patches.json for YouTube
     if app_config['package'] == "com.google.android.youtube":
         try:
-            patches_url = app_config['patches']['source'].rsplit('/latest', 1)[0]
             # Get latest release info (including pre-releases)
-            response = requests.get(f"{patches_url}/releases")
+            response = requests.get("https://api.github.com/repos/anddea/revanced-patches/releases")
             response.raise_for_status()
             releases = response.json()
             latest_release = releases[0]  # First release is the most recent
@@ -50,6 +49,9 @@ def get_version_constraint(app_config):
     return app_config.get('version', 'latest')
 
 def download_app(app_config, app_name):
+    # Create downloads directory if it doesn't exist
+    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+    
     version = get_version_constraint(app_config)
     
     cmd = [
