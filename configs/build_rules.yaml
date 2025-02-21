@@ -1,0 +1,9 @@
+global:
+  output_dir: ./dist
+  retention_days: 7
+  architectures:
+    keep: [arm64-v8a, armeabi-v7a]
+    strip: [x86, x86_64]
+  dpi:
+    keep: [480dpi, 320dpi]
+  version_check_interval: 86400 # 24h in seconds 
