@@ -9,8 +9,19 @@ logger = logging.getLogger(__name__)
 
 def get_latest_version(org, repo):
     url = f"https://api.apkmirror.com/v2/apps/{org}/{repo}/"
-    response = requests.get(url)
-    return response.json()['data']['version']
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        json_data = response.json()
+        version = json_data.get('data', {}).get('version')
+        if not version:
+            logger.warning(f"Latest version not found in response from {url}")
+            return "latest"
+        return version
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch latest version from {url}: {e}")
+        # Return the default fallback so the update check doesn't fail
+        return "latest"
 
 def get_patch_version(patch_url):
     response = requests.get(patch_url)
