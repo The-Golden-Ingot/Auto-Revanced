@@ -18,17 +18,22 @@ def get_version_constraint(app_config):
     """Get version constraint based on app package"""
     # Only check patches.json for YouTube
     if app_config['package'] == "com.google.android.youtube":
-        patches_url = app_config['patches']['source']
-        base_url = patches_url.rsplit('/', 1)[0]
-        response = requests.get(f"{base_url}/patches.json")
-        patches_json = response.json()
-        
-        # Find latest compatible version for YouTube
-        for patch in patches_json:
-            if "compatiblePackages" in patch:
-                for pkg, versions in patch["compatiblePackages"].items():
-                    if pkg == app_config['package'] and versions:
-                        return sorted(versions)[-1]
+        try:
+            patches_url = app_config['patches']['source']
+            base_url = patches_url.rsplit('/', 1)[0]
+            response = requests.get(f"{base_url}/patches.json")
+            response.raise_for_status()  # Raise error for bad status codes
+            patches_json = response.json()
+            
+            # Find latest compatible version for YouTube
+            for patch in patches_json:
+                if "compatiblePackages" in patch:
+                    for pkg, versions in patch["compatiblePackages"].items():
+                        if pkg == app_config['package'] and versions:
+                            return sorted(versions)[-1]
+        except Exception as e:
+            print(f"Error fetching patches.json: {e}")
+            return app_config.get('version', 'latest')
     
     # All other apps use latest version
     return app_config.get('version', 'latest')

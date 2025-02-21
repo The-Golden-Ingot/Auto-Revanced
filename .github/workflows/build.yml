@@ -30,11 +30,22 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.list-apps.outputs.matrix }}
+      matrix: ${{ steps.filter-apps.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - id: list-apps
         uses: ./.github/actions/list-apps
+      - id: filter-apps
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # For scheduled runs, include all apps
+            echo "matrix=${{ steps.list-apps.outputs.matrix }}" >> $GITHUB_OUTPUT
+          else
+            # For manual runs, filter based on selected apps
+            apps=$(echo '${{ steps.list-apps.outputs.matrix }}' | jq -c '[.[] | select(${{ toJSON(github.event.inputs) }}[.]=="true")]')
+            echo "matrix=$apps" >> $GITHUB_OUTPUT
+          fi
 
   build:
     needs: prepare
@@ -47,17 +58,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Check if app should be built
-      id: should-build
-      run: |
-        if [[ "${{ github.event_name }}" == "schedule" ]]; then
-          echo "build=true" >> $GITHUB_OUTPUT
-        else
-          echo "build=${{ github.event.inputs[matrix.app] || 'false' }}" >> $GITHUB_OUTPUT
-        fi
-
     - name: Set up JDK 17
-      if: steps.should-build.outputs.build == 'true'
       uses: actions/setup-java@v3
       with:
         java-version: '17'
@@ -82,7 +83,6 @@ jobs:
         python scripts/merger.py
         
     - name: Apply ReVanced patches
-      if: steps.should-build.outputs.build == 'true'
       run: |
         mkdir -p ${{ env.DIST_DIR }}
         wget -q https://github.com/anddea/revanced-patches/releases/latest/download/patches.rvp
