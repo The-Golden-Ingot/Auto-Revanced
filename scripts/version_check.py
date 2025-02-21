@@ -63,9 +63,9 @@ def check_updates():
         with open(config_file) as f:
             config = yaml.safe_load(f)
         
-        # Special handling only for YouTube
-        if config['package'] == "com.google.android.youtube":
-            # Get patches.json for YouTube version compatibility
+        # Check if app should use compatible version from patches.json
+        if config.get('patches', {}).get('fetchLatestCompatibleVersion', False):
+            # Get patches.json for version compatibility
             patches_json = get_patches_json(config['patches']['source'])
             latest_compatible = get_compatible_version(config['package'], patches_json)
             
@@ -77,27 +77,23 @@ def check_updates():
                         'patch': {'current': 'latest', 'latest': 'latest'},
                         'updated': datetime.now(UTC).isoformat()
                     }
-            continue
+            continue  # Skip APKMirror check for apps using patches.json
         
-        # All other apps use latest version
-        current_apk = config.get('version', 'latest')
-        latest_apk = get_latest_version(config['source']['org'], config['source']['repo'])
-        
-        if current_apk != latest_apk:
-            updates[app_name] = {
-                'apk': {'current': current_apk, 'latest': latest_apk},
-                'patch': {'current': 'latest', 'latest': 'latest'},
-                'updated': datetime.now(UTC).isoformat()
-            }
+        # For apps using APKMirror, check if they have source config
+        if 'source' in config and 'org' in config['source'] and 'repo' in config['source']:
+            current_apk = config.get('version', 'latest')
+            latest_apk = get_latest_version(config['source']['org'], config['source']['repo'])
+            
+            if current_apk != latest_apk:
+                updates[app_name] = {
+                    'apk': {'current': current_apk, 'latest': latest_apk},
+                    'patch': {'current': 'latest', 'latest': 'latest'},
+                    'updated': datetime.now(UTC).isoformat()
+                }
     
     # Write updates to versions.json for the workflow
-    if updates:
-        with open("versions.json", "w") as f:
-            json.dump(updates, f)
-    else:
-        # Create empty versions.json to avoid jq error
-        with open("versions.json", "w") as f:
-            json.dump({}, f)
+    with open("versions.json", "w") as f:
+        json.dump(updates or {}, f)
     
     return updates
 
