@@ -2,6 +2,7 @@ import yaml
 import subprocess
 from pathlib import Path
 import argparse
+import sys
 
 def apply_patches(apk_path, app_config):
     # Define output_apk before using it in base_cmd
@@ -34,9 +35,12 @@ def apply_patches(apk_path, app_config):
             if arch != "universal":
                 base_cmd.extend(["--rip-lib", arch])
     
+    print(f"Running command: {' '.join(base_cmd)}")
     result = subprocess.run(base_cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(f"Patching failed: {result.stderr}")
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr}")
+        raise RuntimeError(f"Patching failed with code {result.returncode}")
     
     return output_apk
 
@@ -47,20 +51,25 @@ if __name__ == "__main__":
     parser.add_argument('--patch-version')
     args = parser.parse_args()
     
-    config_file = Path("configs/apps") / f"{args.app}.yaml"
-    with open(config_file) as f:
-        app_config = yaml.safe_load(f)
-    
-    # Look for merged APKs
-    apks = list(Path("downloads").glob(f"{args.app}*_merged.apk"))
-    if not apks:
-        # Try non-merged APKs
-        apks = list(Path("downloads").glob(f"{args.app}*.apk"))
-    
-    if not apks:
-        raise RuntimeError(f"No APK found for {args.app}")
+    try:
+        config_file = Path("configs/apps") / f"{args.app}.yaml"
+        with open(config_file) as f:
+            app_config = yaml.safe_load(f)
         
-    for apk in apks:
-        print(f"Patching {apk.name}...")
-        patched = apply_patches(apk, app_config)
-        print(f"Patched APK: {patched.name}") 
+        # Look for merged APKs
+        apks = list(Path("downloads").glob(f"{args.app}*_merged.apk"))
+        if not apks:
+            # Try non-merged APKs
+            apks = list(Path("downloads").glob(f"{args.app}*.apk"))
+        
+        if not apks:
+            raise RuntimeError(f"No APK found for {args.app}")
+            
+        for apk in apks:
+            print(f"Patching {apk.name}...")
+            patched = apply_patches(apk, app_config)
+            print(f"Patched APK: {patched.name}")
+            
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        sys.exit(1) 
