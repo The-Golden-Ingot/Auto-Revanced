@@ -1,6 +1,6 @@
 import yaml
 import requests
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 import json
 import logging
@@ -75,7 +75,7 @@ def check_updates():
                     updates[app_name] = {
                         'apk': {'current': current_apk, 'latest': latest_compatible},
                         'patch': {'current': 'latest', 'latest': 'latest'},
-                        'updated': datetime.utcnow().isoformat()
+                        'updated': datetime.now(UTC).isoformat()
                     }
             continue
         
@@ -87,8 +87,17 @@ def check_updates():
             updates[app_name] = {
                 'apk': {'current': current_apk, 'latest': latest_apk},
                 'patch': {'current': 'latest', 'latest': 'latest'},
-                'updated': datetime.utcnow().isoformat()
+                'updated': datetime.now(UTC).isoformat()
             }
+    
+    # Write updates to versions.json for the workflow
+    if updates:
+        with open("versions.json", "w") as f:
+            json.dump(updates, f)
+    else:
+        # Create empty versions.json to avoid jq error
+        with open("versions.json", "w") as f:
+            json.dump({}, f)
     
     return updates
 
