@@ -6,7 +6,7 @@ package: "com.google.android.youtube"
 source:
   org: google-inc
   repo: youtube
-  type: bundle  # Download split APK for maximum compatibility
+  type: apk
 
 # Patch configuration
 patches:

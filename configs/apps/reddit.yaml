@@ -6,7 +6,7 @@ package: "com.reddit.frontpage"
 source:
   org: reddit-inc
   repo: reddit
-  type: standalone  # Download universal APK
+  type: apk  # Download universal APK
 
 # Build settings
 build:
