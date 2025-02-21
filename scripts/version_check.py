@@ -6,6 +6,7 @@ import json
 import logging
 import argparse
 import sys
+from natsort import natsorted
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +29,25 @@ def get_patch_version(patch_url):
     response = requests.get(patch_url)
     return response.url.split('/')[-2]  # Extract version from release URL
 
-def get_compatible_version(package_name, patches_json):
-    """Get the latest compatible version for a package from patches.json"""
-    for patch in patches_json:
-        if "compatiblePackages" in patch:
-            for pkg, versions in patch["compatiblePackages"].items():
-                if pkg == package_name and versions:
-                    # Return the latest compatible version
-                    return sorted(versions)[-1]
-    return None
+def get_compatible_versions(package_name):
+    """Get compatible versions for a package from patches.json"""
+    try:
+        with open("patches.json") as f:
+            patches = json.load(f)
+            
+        versions = set()
+        for patch in patches:
+            if "compatiblePackages" in patch:
+                for pkg in patch["compatiblePackages"]:
+                    if pkg["name"] == package_name and pkg["versions"]:
+                        versions.update(pkg["versions"])
+        
+        if versions:
+            return natsorted(versions)  # Return sorted list of versions
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get compatible versions: {e}")
+        return None
 
 def get_patches_json(source_url: str) -> dict:
     """Get patches.json from the source URL"""
@@ -68,13 +79,13 @@ def check_updates():
         if config.get('patches', {}).get('fetchLatestCompatibleVersion', False):
             # Get patches.json for version compatibility
             patches_json = get_patches_json(config['patches']['source'])
-            latest_compatible = get_compatible_version(config['package'], patches_json)
+            latest_compatible = get_compatible_versions(config['package'])
             
             if latest_compatible:
                 current_apk = config.get('version', 'latest')
-                if current_apk != latest_compatible:
+                if current_apk != latest_compatible[-1]:
                     updates[app_name] = {
-                        'apk': {'current': current_apk, 'latest': latest_compatible},
+                        'apk': {'current': current_apk, 'latest': latest_compatible[-1]},
                         'patch': {'current': 'latest', 'latest': 'latest'},
                         'updated': datetime.now(UTC).isoformat()
                     }
@@ -123,7 +134,6 @@ def update_lockfile(updates):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", required=True, help="App identifier (e.g., youtube)")
-    # New flag to get the latest APK version
     parser.add_argument("--get-latest", action="store_true", help="Output the latest APK version for the app")
     args = parser.parse_args()
 
@@ -133,20 +143,40 @@ if __name__ == "__main__":
         if not config_path.exists():
             logger.error(f"Config file for app '{args.app}' not found at {config_path}")
             sys.exit(1)
+            
         with open(config_path) as f:
             config = yaml.safe_load(f)
-        source = config.get("source", {})
-        org = source.get("org")
-        repo = source.get("repo")
-        if not org or not repo:
-            logger.error("App config must include 'org' and 'repo' in the source field")
-            sys.exit(1)
-        version = get_latest_version(org, repo)
-        if version:
-            print(version)  # This will output a valid APK version (e.g., "19.44.39")
+            
+        # Check if we should use patch-compatible version
+        if config.get("patches", {}).get("fetchLatestCompatibleVersion", False):
+            package = config.get("package")
+            if not package:
+                logger.error("App config must include 'package' when fetchLatestCompatibleVersion is true")
+                sys.exit(1)
+                
+            compatible_versions = get_compatible_versions(package)
+            if not compatible_versions:
+                logger.error(f"No patch-compatible versions found for {package}")
+                sys.exit(1)
+                
+            version = compatible_versions[-1]  # Get latest compatible version
+            print(version)
             sys.exit(0)
         else:
-            sys.exit(1)
+            # Use latest version from APKMirror
+            source = config.get("source", {})
+            org = source.get("org")
+            repo = source.get("repo")
+            if not org or not repo:
+                logger.error("App config must include 'org' and 'repo' in the source field")
+                sys.exit(1)
+                
+            version = get_latest_version(org, repo)
+            if version:
+                print(version)
+                sys.exit(0)
+            else:
+                sys.exit(1)
     else:
         updates = check_updates()
         if updates:
