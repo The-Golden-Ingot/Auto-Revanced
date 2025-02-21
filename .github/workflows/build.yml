@@ -74,10 +74,14 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install apkmd  # Install the APK download tool
+        sudo apt-get update
         sudo apt-get install -y xmlstarlet  # For APK metadata parsing
+        # Make apkmd executable
+        chmod +x scripts/apkmd
 
     - name: Download APKs
+      env:
+        PATH: ${{ github.workspace }}/scripts:$PATH
       run: |
         python scripts/downloader.py
         
