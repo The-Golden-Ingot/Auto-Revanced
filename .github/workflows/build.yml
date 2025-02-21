@@ -94,7 +94,10 @@ jobs:
         
     - name: Merge split APKs
       run: |
-        wget -q https://github.com/REAndroid/APKEditor/releases/download/v1.4.2/APKEditor.jar
+        # Get latest release info and asset name
+        release_info=$(curl -s https://api.github.com/repos/REAndroid/APKEditor/releases/latest)
+        jar_name=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".jar")) | .name')
+        wget -q "https://github.com/REAndroid/APKEditor/releases/latest/download/$jar_name"
         python scripts/merger.py
         
     - name: Apply ReVanced patches
