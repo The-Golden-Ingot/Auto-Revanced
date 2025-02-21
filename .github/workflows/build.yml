@@ -108,27 +108,19 @@ jobs:
       env:
         PATH: ${{ github.workspace }}/scripts:$PATH
       run: |
-        # Create downloads directory if missing
-        /usr/bin/mkdir -p downloads
+        # Create downloads directory with proper permissions
+        mkdir -p downloads
+        chmod 777 downloads
         
-        # Enable debug output
-        set -x  # Print commands as they execute
-        export PYTHONVERBOSE=2  # Increase Python verbosity
+        # Run downloader with debug
+        python scripts/downloader.py --app ${{ matrix.app }} --debug
         
-        # Run downloader with debug flags
-        python -v scripts/downloader.py --debug
+        # Verify downloads
+        echo "Downloaded files:"
+        find downloads -name '*.apk' -ls
         
-        # List contents of downloads dir
-        echo "Contents of downloads directory:"
-        /usr/bin/find downloads -type f -ls
-        
-        # Check downloads using find
-        if [ -z "$(/usr/bin/find downloads -maxdepth 1 -type f -name '*.apk')" ]; then
-          echo "::error::No APKs were downloaded to downloads directory"
-          echo "Current directory contents:"
-          ls -la
-          echo "Downloads directory contents:"
-          ls -la downloads/
+        if [ -z "$(find downloads -name '*.apk')" ]; then
+          echo "::error::No APKs downloaded for ${{ matrix.app }}"
           exit 1
         fi
         

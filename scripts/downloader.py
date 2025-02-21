@@ -1,91 +1,67 @@
 import yaml
-import subprocess
+import json
 from pathlib import Path
-import requests
+import subprocess
+import argparse
+import sys
 
-CONFIG_DIR = Path("configs/apps")
-OUTPUT_DIR = "downloads"
+def load_config(app_name: str) -> dict:
+    config_path = Path("configs/apps") / f"{app_name}.yaml"
+    with open(config_path) as f:
+        return yaml.safe_load(f)
 
-def load_configs():
-    configs = {}
-    for config_file in CONFIG_DIR.glob("*.yaml"):
-        app_name = config_file.stem
-        with open(config_file) as f:
-            configs[app_name] = yaml.safe_load(f)
-    return configs
+def generate_apkmd_config(app_config: dict) -> dict:
+    return {
+        "options": {
+            "arch": app_config['build']['arch'],
+            "outDir": "downloads",
+            "type": app_config['source'].get('type', 'apk')
+        },
+        "apps": [{
+            "org": app_config['source']['org'],
+            "repo": app_config['source']['repo'],
+            "version": app_config['version'],
+            "outFile": app_config['package']
+        }]
+    }
 
-def get_version_constraint(app_config):
-    """Get version constraint based on app package"""
-    try:
-        # Get latest release info (including pre-releases)
-        response = requests.get("https://api.github.com/repos/anddea/revanced-patches/releases")
-        response.raise_for_status()
-        releases = response.json()
-        latest_release = next((r for r in releases if not r['prerelease'] and not r['draft']), None)
-        
-        if not latest_release:
-            print(f"No stable release found for {app_config['name']}")
-            return app_config.get('version', 'latest')
-            
-        # Get patches.json from the release assets
-        patches_json_url = next(
-            (asset['browser_download_url'] 
-            for asset in latest_release['assets'] 
-            if asset['name'] == 'patches.json'),
-            None
-        )
-        
-        if not patches_json_url:
-            print(f"No patches.json found in release for {app_config['name']}")
-            return app_config.get('version', 'latest')
-            
-        # Download and parse patches.json
-        patches_json = requests.get(patches_json_url).json()
-        
-        # For YouTube, find compatible version from patches
-        if app_config['package'] == "com.google.android.youtube":
-            for patch in patches_json:
-                if "compatiblePackages" in patch:
-                    for pkg in patch["compatiblePackages"]:
-                        if isinstance(pkg, dict) and pkg.get("name") == app_config['package']:
-                            versions = pkg.get("versions", [])
-                            if versions:
-                                return sorted(versions)[-1]
-        
-        # For other apps, use version from config or latest
-        return app_config.get('version', 'latest')
-        
-    except Exception as e:
-        print(f"Error fetching version info for {app_config['name']}: {e}")
-        return app_config.get('version', 'latest')
-
-def download_app(app_config, app_name):
-    # Create downloads directory if it doesn't exist
-    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+def download_apk(app_name: str, debug: bool = False):
+    config = load_config(app_name)
+    apkmd_config = generate_apkmd_config(config)
     
-    version = get_version_constraint(app_config)
+    config_file = Path("downloads") / f"{app_name}.json"
+    with open(config_file, 'w') as f:
+        json.dump(apkmd_config, f, indent=2)
     
     cmd = [
-        "apkmd", "download",
-        app_config['source']['org'],
-        app_config['source']['repo'],
-        "--version", version,
-        "--out-dir", OUTPUT_DIR
+        "apkmd", "download", "--config", str(config_file),
+        "--debug" if debug else ""
     ]
+    cmd = [c for c in cmd if c]  # Remove empty arguments
     
-    # Add type flag if specified
-    if 'type' in app_config['source']:
-        cmd.extend(["--type", app_config['source']['type']])
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        check=False
+    )
     
-    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(f"Download failed for {app_name}: {result.stderr}")
-    
-    return list(Path(OUTPUT_DIR).glob(f"{app_name}*.*"))
+        print(f"APKMD Error ({result.returncode}):")
+        print(result.stderr)
+        sys.exit(1)
+        
+    print("Download completed successfully")
+    print(result.stdout)
 
 if __name__ == "__main__":
-    configs = load_configs()
-    for app_name, app_config in configs.items():
-        print(f"Downloading {app_name}...")
-        downloaded_files = download_app(app_config, app_name)
-        print(f"Downloaded: {[f.name for f in downloaded_files]}") 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--app", required=True)
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
+    
+    try:
+        download_apk(args.app, args.debug)
+    except Exception as e:
+        print(f"Download failed: {str(e)}")
+        sys.exit(1) 
