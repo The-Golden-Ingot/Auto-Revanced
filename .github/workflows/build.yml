@@ -88,17 +88,17 @@ jobs:
 
     - name: Download APKs
       env:
-        PATH: ${{ github.workspace }}/scripts:${{ env.PATH }}  # Preserve system PATH
+        PATH: ${{ github.workspace }}/scripts:$PATH  # Use $PATH instead of env.PATH
       run: |
         # Create downloads directory if missing
-        mkdir -p downloads
+        /usr/bin/mkdir -p downloads
         
         # Enable debug output
         export PYTHONVERBOSE=1
         python -v scripts/downloader.py
         
         # Check downloads using find instead of ls
-        if [ -z "$(find downloads -maxdepth 1 -type f -name '*.apk')" ]; then
+        if [ -z "$(/usr/bin/find downloads -maxdepth 1 -type f -name '*.apk')" ]; then
           echo "::error::No APKs were downloaded to downloads directory"
           exit 1
         fi
