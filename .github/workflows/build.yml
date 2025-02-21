@@ -90,7 +90,15 @@ jobs:
       env:
         PATH: ${{ github.workspace }}/scripts:$PATH
       run: |
-        python scripts/downloader.py
+        # Enable debug output
+        export PYTHONVERBOSE=1
+        python -v scripts/downloader.py
+        
+        # Check if downloads succeeded
+        if [ ! -d "${{ env.DOWNLOAD_DIR }}" ] || [ -z "$(ls -A ${{ env.DOWNLOAD_DIR }})" ]; then
+          echo "::error::No APKs were downloaded to ${{ env.DOWNLOAD_DIR }}"
+          exit 1
+        fi
         
     - name: Check for split APKs
       id: check-splits

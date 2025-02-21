@@ -16,42 +16,48 @@ def load_configs():
 
 def get_version_constraint(app_config):
     """Get version constraint based on app package"""
-    # Only check patches.json for YouTube
-    if app_config['package'] == "com.google.android.youtube":
-        try:
-            # Get latest release info (including pre-releases)
-            response = requests.get("https://api.github.com/repos/anddea/revanced-patches/releases")
-            response.raise_for_status()
-            releases = response.json()
-            latest_release = releases[0]  # First release is the most recent
+    try:
+        # Get latest release info (including pre-releases)
+        response = requests.get("https://api.github.com/repos/anddea/revanced-patches/releases")
+        response.raise_for_status()
+        releases = response.json()
+        latest_release = next((r for r in releases if not r['prerelease'] and not r['draft']), None)
+        
+        if not latest_release:
+            print(f"No stable release found for {app_config['name']}")
+            return app_config.get('version', 'latest')
             
-            # Get patches.json from the release assets
-            patches_json_url = next(
-                asset['browser_download_url'] 
-                for asset in latest_release['assets'] 
-                if asset['name'] == 'patches.json'
-            )
-            patches_rvp_url = next(
-                asset['browser_download_url']
-                for asset in latest_release['assets']
-                if asset['name'].endswith('.rvp')
-            )
+        # Get patches.json from the release assets
+        patches_json_url = next(
+            (asset['browser_download_url'] 
+            for asset in latest_release['assets'] 
+            if asset['name'] == 'patches.json'),
+            None
+        )
+        
+        if not patches_json_url:
+            print(f"No patches.json found in release for {app_config['name']}")
+            return app_config.get('version', 'latest')
             
-            # Add this line to actually download and parse patches.json
-            patches_json = requests.get(patches_json_url).json()
-            
-            # Find latest compatible version for YouTube
+        # Download and parse patches.json
+        patches_json = requests.get(patches_json_url).json()
+        
+        # For YouTube, find compatible version from patches
+        if app_config['package'] == "com.google.android.youtube":
             for patch in patches_json:
                 if "compatiblePackages" in patch:
-                    for pkg, versions in patch["compatiblePackages"].items():
-                        if pkg == app_config['package'] and versions:
-                            return sorted(versions)[-1]
-        except Exception as e:
-            print(f"Error fetching patches.json: {e}")
-            return app_config.get('version', 'latest')
-    
-    # All other apps use latest version
-    return app_config.get('version', 'latest')
+                    for pkg in patch["compatiblePackages"]:
+                        if isinstance(pkg, dict) and pkg.get("name") == app_config['package']:
+                            versions = pkg.get("versions", [])
+                            if versions:
+                                return sorted(versions)[-1]
+        
+        # For other apps, use version from config or latest
+        return app_config.get('version', 'latest')
+        
+    except Exception as e:
+        print(f"Error fetching version info for {app_config['name']}: {e}")
+        return app_config.get('version', 'latest')
 
 def download_app(app_config, app_name):
     # Create downloads directory if it doesn't exist
