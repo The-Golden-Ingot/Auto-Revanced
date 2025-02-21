@@ -46,9 +46,12 @@ def download_app(app_config, app_name):
         app_config['source']['org'],
         app_config['source']['repo'],
         "--version", version,
-        "--out-dir", OUTPUT_DIR,
-        *app_config['source'].get('args', [])
+        "--out-dir", OUTPUT_DIR
     ]
+    
+    # Add type flag if specified
+    if 'type' in app_config['source']:
+        cmd.extend(["--type", app_config['source']['type']])
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:

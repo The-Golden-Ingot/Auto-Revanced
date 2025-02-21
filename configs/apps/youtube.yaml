@@ -6,15 +6,7 @@ package: "com.google.android.youtube"
 source:
   org: google-inc
   repo: youtube
-  args: ["--type", "bundle"]  # Download split APK for maximum compatibility
-
-# Build settings
-build:
-  sdk: { min: 23, target: 33 }
-  optimize:
-    arch: ["arm64-v8a", "armeabi-v7a"]  # Keep only these architectures
-    dpi: ["480dpi", "320dpi"]           # Keep only these DPIs
-  version_track: true
+  type: bundle  # Download split APK for maximum compatibility
 
 # Patch configuration
 patches:
