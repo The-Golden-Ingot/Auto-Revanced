@@ -37,6 +37,9 @@ def get_version_constraint(app_config):
                 if asset['name'].endswith('.rvp')
             )
             
+            # Add this line to actually download and parse patches.json
+            patches_json = requests.get(patches_json_url).json()
+            
             # Find latest compatible version for YouTube
             for patch in patches_json:
                 if "compatiblePackages" in patch:
