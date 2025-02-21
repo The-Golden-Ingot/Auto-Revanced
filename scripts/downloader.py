@@ -77,25 +77,29 @@ def download_apk(app_name: str, debug: bool = False):
     logger.info(f"Starting download for {app_name}")
     config = load_config(app_name)
     
-    compatible_versions = get_compatible_versions(config['package'])
-    if not compatible_versions:
-        raise RuntimeError(f"No patch-compatible versions found for {config['package']}")
-    
-    # Get latest version from sorted list
-    latest_compatible = compatible_versions[-1]
-    logger.info(f"Latest patch-compatible version: {latest_compatible}")
+    # Check if we should use patch-compatible version
+    if 'patches' in config and config['patches'].get('fetchLatestCompatibleVersion', False):
+        compatible_versions = get_compatible_versions(config['package'])
+        if not compatible_versions:
+            raise RuntimeError(f"No patch-compatible versions found for {config['package']}")
+        version = compatible_versions[-1]  # Get latest compatible version
+        logger.info(f"Using patch-compatible version: {version}")
+    else:
+        # Use version from config, defaulting to 'stable'
+        version = config.get('version', 'stable')
+        logger.info(f"Using configured version: {version}")
     
     # Existing download logic
     org = config['source']['org']
     repo = config['source']['repo']
     
-    # Update command to use this specific version
+    # Update command to use determined version
     cmd = [
         "apkmd",
         "download",
         org,
         repo,
-        "--version", latest_compatible,
+        "--version", version,
         "--arch", config.get('arch', 'universal'),
         "--type", config['source'].get('type', 'apk'),
         "--outdir", "downloads",
