@@ -53,6 +53,10 @@ jobs:
     strategy:
       matrix:
         app: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    permissions:
+      contents: write  # Needed to create releases
+      packages: write  # Needed if uploading to packages
+      actions: write  # Needed for workflow interactions
     
     steps:
     - name: Checkout code
@@ -186,12 +190,12 @@ jobs:
         retention-days: ${{ steps.build-rules.outputs.retention_days }}
         
     - name: Create release
+      if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       uses: softprops/action-gh-release@v1
-      if: success()
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}  # Explicitly pass the token
         files: ${{ env.DIST_DIR }}/*.apk
-        tag_name: patched-${{ github.run_id }}
+        tag_name: patched-$(date +%s)
         generate_release_notes: true
 
     - name: Load build rules
