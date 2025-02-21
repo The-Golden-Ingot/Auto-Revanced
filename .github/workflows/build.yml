@@ -5,14 +5,11 @@ on:
     - cron: '0 0 * * *' # Daily build
   workflow_dispatch:
     inputs:
-      app:
-        description: 'App to build (comma-separated)'
-        required: false
-        default: 'all'
       force:
         description: 'Force rebuild'
+        type: boolean
         required: false
-        default: 'false'
+        default: false
 
 env:
   CONFIG_DIR: configs
@@ -20,14 +17,38 @@ env:
   DIST_DIR: dist
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list-apps.outputs.matrix }}
+      choices: ${{ steps.list-apps.outputs.choices }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: list-apps
+        uses: ./.github/actions/list-apps
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJson(needs.prepare.outputs.matrix) }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
       
+    - name: Check if app should be built
+      id: should-build
+      run: |
+        if [[ "${{ github.event_name }}" == "schedule" ]]; then
+          echo "build=true" >> $GITHUB_OUTPUT
+        else
+          echo "build=${{ inputs[format('build_{0}', matrix.app)] }}" >> $GITHUB_OUTPUT
+        fi
+
     - name: Set up JDK 17
+      if: steps.should-build.outputs.build == 'true'
       uses: actions/setup-java@v3
       with:
         java-version: '17'
@@ -51,31 +72,20 @@ jobs:
         wget https://github.com/REAndroid/APKEditor/releases/latest/download/APKEditor.jar
         python scripts/merger.py
         
-    - name: Select apps to build
-      id: app-selection
-      run: |
-        if [ "${{ inputs.app }}" = "all" ]; then
-          apps=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml)
-        else
-          apps="${{ inputs.app }}"
-        fi
-        echo "selected_apps=$apps" >> $GITHUB_OUTPUT
-
     - name: Apply ReVanced patches
+      if: steps.should-build.outputs.build == 'true'
       run: |
         mkdir -p ${{ env.DIST_DIR }}
         wget -q https://github.com/anddea/revanced-patches/releases/latest/download/patches.rvp
         wget -q https://github.com/inotia00/revanced-cli/releases/latest/download/revanced-cli-all.jar
         
-        for app in ${{ steps.app-selection.outputs.selected_apps }}; do
-          if [ -f "versions.lock" ]; then
-            versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${app}']['apk_version'])")
-            app_version=$(echo $versions | cut -d' ' -f1)
-            patch_version=$(echo $versions | cut -d' ' -f2)
-            
-            python scripts/patcher.py --app ${app} --version $app_version --patch-version $patch_version
-          fi
-        done
+        if [ -f "versions.lock" ]; then
+          versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ matrix.app }}']['apk_version'])")
+          app_version=$(echo $versions | cut -d' ' -f1)
+          patch_version=$(echo $versions | cut -d' ' -f2)
+          
+          python scripts/patcher.py --app ${{ matrix.app }} --version $app_version --patch-version $patch_version
+        fi
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v3

@@ -1,0 +1,30 @@
+name: 'List Available Apps'
+description: 'Dynamically lists all available apps from configs/apps/*.yaml'
+
+outputs:
+  matrix:
+    description: "JSON array of available apps"
+    value: ${{ steps.set-matrix.outputs.matrix }}
+  choices:
+    description: "Input choices for workflow_dispatch"
+    value: ${{ steps.set-choices.outputs.choices }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: set-matrix
+      shell: bash
+      run: |
+        apps=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c 'split("\n")[:-1]')
+        echo "matrix=$apps" >> $GITHUB_OUTPUT
+        
+    - id: set-choices
+      shell: bash
+      run: |
+        choices=$(ls configs/apps/*.yaml | xargs -n 1 basename -s .yaml | jq -R -s -c '{
+          type: "boolean",
+          description: "Build " + .,
+          required: false,
+          default: false
+        }' | jq -s 'INDEX(.description)')
+        echo "choices=$choices" >> $GITHUB_OUTPUT 
