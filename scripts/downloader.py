@@ -52,16 +52,29 @@ def generate_apkmd_config(app_config: dict) -> dict:
 def download_apk(app_name: str, debug: bool = False):
     logger.info(f"Starting download for {app_name}")
     config = load_config(app_name)
-    apkmd_config = generate_apkmd_config(config)
     
-    config_file = Path("downloads") / f"{app_name}.json"
-    logger.debug(f"Writing apkmd config to {config_file}")
-    with open(config_file, 'w') as f:
-        json.dump(apkmd_config, f, indent=2)
+    # Extract required parameters from config
+    org = config['source']['org']
+    repo = config['source']['repo']
+    version = config.get('version', 'stable')
+    apk_type = config['source'].get('type', 'apk')
+    arch = config.get('arch', 'universal')
+    if isinstance(arch, list):
+        arch = arch[0]  # Take first architecture if multiple are specified
     
+    # Build command with required positional args first
     cmd = [
-        "apkmd", "download", "--config", str(config_file)
+        "apkmd",
+        "download",
+        org,
+        repo,
+        "--version", version,
+        "--arch", arch,
+        "--type", apk_type,
+        "--outdir", "downloads",
+        "--outfile", config.get('package', repo)
     ]
+    
     if debug:
         cmd.append("--debug")
     
@@ -78,7 +91,7 @@ def download_apk(app_name: str, debug: bool = False):
         logger.error(f"Command stderr:\n{result.stderr}")
     
     if result.returncode != 0:
-        raise RuntimeError(f"APKMD failed with exit code {result.returncode}")
+        raise RuntimeError(f"APKMD failed with exit code {result.returncode}\nOutput: {result.stdout}\nError: {result.stderr}")
     
     # Verify download
     apks = list(Path("downloads").glob("*.apk"))
