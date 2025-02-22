@@ -215,13 +215,13 @@ jobs:
         
         find . -type f -name '*.apk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
-            # Remove leading ./ if present
-            apk_clean="${apk#./}"
-            output_path="${apk_clean%.*}_optimized.apk"
+            # Keep the ./ prefix for relative paths
+            apk_clean="${apk}"
+            output_path="${apk%.*}_optimized.apk"
             echo "Processing $apk_clean -> $output_path"
             if [ ! -f "$apk_clean" ]; then
-              echo "Error: Input APK not found: $apk_clean"
-              ls -la "$apk_clean"  # Debug: Show file details
+              echo "Error: Input APK not found: $apk_clean (pwd: $(pwd))"
+              ls -la
               continue
             fi
             java -jar ../APKEditor.jar b -i "$apk_clean" -o "$output_path" \
