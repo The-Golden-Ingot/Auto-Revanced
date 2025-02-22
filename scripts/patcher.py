@@ -5,7 +5,10 @@ import argparse
 import sys
 
 def apply_patches(apk_path, app_config):
-    # Define output_apk before using it in base_cmd
+    # Load global build rules
+    with open("configs/build_rules.yaml") as f:
+        build_rules = yaml.safe_load(f)['global']
+    
     output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
     
     base_cmd = [
@@ -21,21 +24,16 @@ def apply_patches(apk_path, app_config):
     include_patches = app_config['patches'].get('include', [])
     exclude_patches = app_config['patches'].get('exclude', [])
     
-    # Only add include flag if patches are specifically listed
     if include_patches:
         base_cmd.extend(["-e", ",".join(include_patches)])
     
-    # Always add exclude flag if there are exclusions
     if exclude_patches:
         base_cmd.extend(["-d", ",".join(exclude_patches)])
     
-    # Add architecture optimization
-    if 'build' in app_config and 'optimize' in app_config['build']:
-        # Default to common architectures if none specified
-        archs = app_config['build']['optimize'].get('arch', ['arm64-v8a', 'armeabi-v7a'])
-        for arch in archs:
-            if arch != "universal":
-                base_cmd.extend(["--rip-lib", arch])
+    # Add architecture optimization from build rules
+    if 'architectures' in build_rules:
+        for arch in build_rules['architectures'].get('strip', []):
+            base_cmd.extend(["--rip-lib", arch])
     
     print(f"Running command: {' '.join(base_cmd)}")
     result = subprocess.run(base_cmd, capture_output=True, text=True)

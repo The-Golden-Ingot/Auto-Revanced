@@ -2,11 +2,35 @@ import subprocess
 from pathlib import Path
 import yaml
 
+def load_build_rules():
+    """Load global build rules"""
+    with open("configs/build_rules.yaml") as f:
+        return yaml.safe_load(f)['global']
+
 def merge_splits(input_path):
     output_file = input_path.parent / f"{input_path.stem}_merged.apk"
+    build_rules = load_build_rules()
+    
+    # Base merge command
+    base_cmd = ["java", "-jar", "APKEditor.jar", "m", "-i", str(input_path), "-o", str(output_file)]
+    
+    # Add architecture optimization if configured
+    if 'architectures' in build_rules:
+        # Keep only specified architectures
+        for arch in build_rules['architectures'].get('strip', []):
+            base_cmd.extend(["--remove-lib", arch])
+    
+    # Add DPI optimization if configured
+    if 'dpi' in build_rules:
+        keep_dpi = build_rules['dpi'].get('keep', [])
+        if keep_dpi:
+            base_cmd.extend(["--keep-dpi", ",".join(keep_dpi)])
+    
+    # Add legacy flag for compatibility
+    base_cmd.append("--legacy")
     
     result = subprocess.run(
-        ["java", "-jar", "APKEditor.jar", "m", "-i", str(input_path), "-o", str(output_file), "--legacy"],
+        base_cmd,
         capture_output=True,
         text=True
     )
