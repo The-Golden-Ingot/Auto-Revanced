@@ -6,6 +6,7 @@ import argparse
 import sys
 import logging
 from natsort import natsorted
+import requests
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -54,47 +55,44 @@ def generate_apkmd_config(app_config: dict) -> dict:
 def get_compatible_versions(app_package: str) -> list:
     """Get all compatible versions from any patch for a package"""
     try:
-        # Get patches.json from the workflow's downloaded file
-        patches_file = Path("patches.json")
-        if not patches_file.exists():
-            logger.error("patches.json not found in current directory")
-            return []
-            
-        with open(patches_file) as f:
-            content = f.read().strip()  # Remove any whitespace
-            if not content:
-                logger.error("patches.json is empty")
-                return []
-            patches = json.loads(content)
-            
-        if not isinstance(patches, list):
-            logger.error("patches.json does not contain a list")
-            return []
-            
-        # Collect all versions from any patch targeting this package
-        all_versions = set()
-        for patch in patches:
-            if not isinstance(patch, dict):
-                continue
-            compatible_packages = patch.get("compatiblePackages", {})
-            if not isinstance(compatible_packages, dict):
-                continue
-            pkg_versions = compatible_packages.get(app_package, [])
-            if isinstance(pkg_versions, list):
-                all_versions.update(pkg_versions)
-            
-        if not all_versions:
-            logger.warning(f"No compatible versions found for {app_package}")
-            return []
-            
-        # Sort versions naturally (18.40.34 > 18.33.40 etc)
-        return natsorted(all_versions)
+        # Try all possible patches.json filenames
+        for fn in ["patches.json", "patches.json.1", "patches.json.2"]:
+            patches_file = Path(fn)
+            if patches_file.exists():
+                with open(patches_file) as f:
+                    content = f.read().strip()
+                    if content:
+                        return process_patches_content(content, app_package)
         
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in patches.json: {e}")
-        return []
+        logger.error("No valid patches.json found locally, trying remote...")
+        return get_remote_compatible_versions(app_package)
+        
     except Exception as e:
-        logger.error(f"Failed to process patches.json: {str(e)}")
+        logger.error(f"Version check failed: {str(e)}")
+        return []
+
+def process_patches_content(content: str, app_package: str) -> list:
+    """Process patches.json content"""
+    patches = json.loads(content)
+    all_versions = set()
+    
+    for patch in patches:
+        compatible_packages = patch.get("compatiblePackages", {})
+        pkg_versions = compatible_packages.get(app_package, [])
+        if isinstance(pkg_versions, list):
+            all_versions.update(pkg_versions)
+    
+    return natsorted(all_versions) if all_versions else []
+
+def get_remote_compatible_versions(app_package: str) -> list:
+    """Fallback to downloading patches.json directly"""
+    try:
+        patches_url = "https://github.com/anddea/revanced-patches/releases/latest/download/patches.json"
+        response = requests.get(patches_url)
+        response.raise_for_status()
+        return process_patches_content(response.text, app_package)
+    except Exception as e:
+        logger.error(f"Remote fetch failed: {str(e)}")
         return []
 
 def download_apk(app_name: str, debug: bool = False):
