@@ -5,10 +5,6 @@ import argparse
 import sys
 
 def apply_patches(apk_path, app_config):
-    # Load global build rules
-    with open("configs/build_rules.yaml") as f:
-        build_rules = yaml.safe_load(f)['global']
-    
     output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
     
     base_cmd = [
@@ -29,11 +25,6 @@ def apply_patches(apk_path, app_config):
     
     if exclude_patches:
         base_cmd.extend(["-d", ",".join(exclude_patches)])
-    
-    # Add architecture optimization from build rules
-    if 'architectures' in build_rules:
-        for arch in build_rules['architectures'].get('strip', []):
-            base_cmd.extend(["--rip-lib", arch])
     
     print(f"Running command: {' '.join(base_cmd)}")
     result = subprocess.run(base_cmd, capture_output=True, text=True)
