@@ -206,25 +206,31 @@ jobs:
         
         # Then optimize all APKs (including non-split)
         echo "Optimizing all APKs..."
-        if ! find downloads -type f -name '*.apk' | grep -q .; then
+        cd downloads  # Change to downloads directory
+        
+        if ! find . -type f -name '*.apk' | grep -q .; then
           echo "No APK files found in downloads directory!"
           exit 1
         fi
         
-        find downloads -type f -name '*.apk' | while read apk; do
+        find . -type f -name '*.apk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
-            output_path="${apk%.*}_optimized.apk"
-            echo "Processing $apk -> $output_path"
-            if [ ! -f "$apk" ]; then
-              echo "Error: Input APK not found: $apk"
+            # Remove leading ./ if present
+            apk_clean="${apk#./}"
+            output_path="${apk_clean%.*}_optimized.apk"
+            echo "Processing $apk_clean -> $output_path"
+            if [ ! -f "$apk_clean" ]; then
+              echo "Error: Input APK not found: $apk_clean"
+              ls -la "$apk_clean"  # Debug: Show file details
               continue
             fi
-            java -jar APKEditor.jar b -i "$apk" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) \
-              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml)
+            java -jar ../APKEditor.jar b -i "$apk_clean" -o "$output_path" \
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' ../configs/build_rules.yaml) \
+              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' ../configs/build_rules.yaml)
           fi
         done
         
+        cd ..  # Return to original directory
         echo "Final APKs:"
         find downloads -name '*_optimized.apk' -ls
         
