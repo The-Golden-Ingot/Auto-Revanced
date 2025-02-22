@@ -180,14 +180,34 @@ jobs:
         fi
         echo "needs_merge=$needs_merge" >> $GITHUB_OUTPUT
         
-    - name: Merge split APKs
-      if: steps.check-splits.outputs.needs_merge == 'true'
+    - name: Download APKEditor
       run: |
-        # Get latest release info and asset name
         release_info=$(curl -s https://api.github.com/repos/REAndroid/APKEditor/releases/latest)
         jar_name=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".jar")) | .name')
-        wget -q "https://github.com/REAndroid/APKEditor/releases/latest/download/$jar_name"
-        python scripts/merger.py
+        wget -q "https://github.com/REAndroid/APKEditor/releases/latest/download/$jar_name" -O APKEditor.jar
+        echo "Downloaded APKEditor: $(ls -lh APKEditor.jar)"
+        
+    - name: Process APKs with APKEditor
+      run: |
+        echo "Processing APKs with APKEditor..."
+        # First process split APKs
+        if [[ "${{ steps.check-splits.outputs.needs_merge }}" == 'true' ]]; then
+          python scripts/merger.py
+        fi
+        
+        # Then optimize all APKs (including non-split)
+        echo "Optimizing all APKs..."
+        find downloads -name '*.apk' | while read apk; do
+          if [[ ! "$apk" == *"_optimized"* ]]; then
+            java -jar APKEditor.jar b -i "$apk" -o "${apk%.*}_optimized.apk" \
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) \
+              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml) \
+              --legacy
+          fi
+        done
+        
+        echo "Final APKs:"
+        find downloads -name '*_optimized.apk' -ls
         
     - name: Apply ReVanced patches
       run: |
