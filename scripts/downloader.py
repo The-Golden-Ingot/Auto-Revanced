@@ -79,21 +79,30 @@ def process_patches_content(content: str, app_package: str) -> list:
         
         for patch in patches:
             # Handle different patch format versions
-            compatible_packages = patch.get("compatiblePackages")
+            compatible_packages = patch.get("compatiblePackages", [])
             if not compatible_packages:
                 continue
                 
-            for pkg in compatible_packages:
-                if pkg.get("name") == app_package:
-                    versions = pkg.get("versions")
-                    if isinstance(versions, list):
-                        all_versions.update(versions)
-                    elif isinstance(versions, str):
-                        all_versions.add(versions)
+            # In patches.json, compatiblePackages can be a dict or list
+            if isinstance(compatible_packages, dict):
+                # Handle dict format where app_package is a key
+                versions = compatible_packages.get(app_package, [])
+                if isinstance(versions, list):
+                    all_versions.update(versions)
+            else:
+                # Handle list format where each item has name and versions
+                for pkg in compatible_packages:
+                    if isinstance(pkg, dict) and pkg.get("name") == app_package:
+                        versions = pkg.get("versions", [])
+                        if isinstance(versions, list):
+                            all_versions.update(versions)
         
         return natsorted(all_versions) if all_versions else []
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in patches file: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Error processing patches content: {str(e)}")
         return []
 
 def get_remote_compatible_versions(app_package: str) -> list:
