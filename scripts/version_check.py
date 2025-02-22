@@ -33,9 +33,9 @@ def get_compatible_versions(package_name):
     """Get compatible versions for a package from patches.json"""
     try:
         # First try patches.json in current directory
-        patches_file = Path("patches.json")
+        patches_file = Path("patches.json ")
         if not patches_file.exists():
-            patches_file = Path("patches.json.2")
+            patches_file = Path("patches.json ")
         
         logger.debug(f"Trying to read from: {patches_file.absolute()}")
         if not patches_file.exists():
