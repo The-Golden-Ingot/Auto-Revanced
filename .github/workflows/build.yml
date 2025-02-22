@@ -79,16 +79,39 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyyaml requests natsort  # Remove apkmd from pip installs
+        pip install pyyaml requests natsort
         sudo apt-get update
-        sudo apt-get install -y xmlstarlet  # For APK metadata parsing
+        sudo apt-get install -y xmlstarlet jq curl wget
         
-        # Download apkmd directly from repository
-        wget -q https://raw.githubusercontent.com/anddea/apkmd/main/apkmd -O scripts/apkmd
+        # Create scripts directory if it doesn't exist
+        mkdir -p scripts
+        
+        # Download and setup apkmd with error handling
+        echo "Downloading apkmd..."
+        if ! wget -q https://raw.githubusercontent.com/anddea/apkmd/main/apkmd -O scripts/apkmd; then
+          echo "::error::Failed to download apkmd"
+          exit 1
+        fi
+        
+        # Make apkmd executable and verify permissions
         chmod +x scripts/apkmd
+        if ! [ -x "scripts/apkmd" ]; then
+          echo "::error::Failed to make apkmd executable"
+          exit 1
+        fi
         
-        # Verify apkmd is executable
-        scripts/apkmd --version || echo "apkmd installation verified"
+        # Install apkmd dependencies
+        echo "Installing apkmd dependencies..."
+        sudo apt-get install -y python3-bs4 python3-requests
+        
+        # Verify apkmd installation
+        echo "Verifying apkmd installation..."
+        if ! scripts/apkmd --version; then
+          echo "apkmd verification failed, but continuing..."
+        fi
+        
+        # Add scripts to PATH
+        echo "$PWD/scripts" >> $GITHUB_PATH
 
     - name: Verify Config
       run: |
@@ -127,14 +150,15 @@ jobs:
 
     - name: Download APKs
       run: |
-        # Get patches.json from previous step
-        cp patches.json patches.workflow.json  # Preserve original
-        
-        # Create downloads directory with proper permissions
+        # Ensure clean environment
+        rm -rf downloads/*
         mkdir -p downloads
         chmod 777 downloads
         
-        # Run downloader with debug and PATH including scripts directory
+        # Preserve original patches.json
+        cp patches.json patches.workflow.json
+        
+        # Run downloader with debug and explicit path
         PATH="$PWD/scripts:$PATH" python scripts/downloader.py --app ${{ matrix.app }} --debug
         
         # Verify downloads
