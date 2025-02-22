@@ -35,54 +35,64 @@ def get_compatible_versions(package_name):
         # First try patches.json in current directory
         patches_file = Path("patches.json")
         if not patches_file.exists():
-            patches_file = Path("patches.json.2")  # Try the numbered version from wget
+            patches_file = Path("patches.json.2")
         
+        logger.debug(f"Trying to read from: {patches_file.absolute()}")
         if not patches_file.exists():
-            logger.error("Could not find patches.json or patches.json.2")
+            available_files = list(Path(".").glob("patches.json*"))
+            logger.error(f"No patches file found. Available files: {[f.name for f in available_files]}")
             return None
             
-        logger.debug(f"Reading patches from {patches_file}")
         with open(patches_file) as f:
             content = f.read().strip()
             if not content:
                 logger.error("patches.json is empty")
                 return None
-            patches = json.loads(content)
-            
+            try:
+                patches = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in {patches_file.name}: {e}")
+                return None
+        
+        logger.debug(f"Total patches found: {len(patches)}")
+        
         if not isinstance(patches, list):
-            logger.error(f"Expected patches.json to contain a list, got {type(patches)}")
+            logger.error(f"Expected list of patches, got {type(patches)}")
             return None
             
         versions = set()
-        for patch in patches:
+        for i, patch in enumerate(patches, 1):
             if not isinstance(patch, dict):
+                logger.debug(f"Skipping non-dict patch at index {i}")
                 continue
                 
-            compatible_packages = patch.get("compatiblePackages", [])
-            if not isinstance(compatible_packages, list):
-                continue
+            compatible_packages = patch.get("compatiblePackages")
+            logger.debug(f"Patch {i} compatiblePackages type: {type(compatible_packages)}")
+            
+            if isinstance(compatible_packages, dict):
+                logger.debug(f"Dict structure keys: {list(compatible_packages.keys())[:3]}...")
+                pkg_versions = compatible_packages.get(package_name, [])
+                if pkg_versions:
+                    versions.update(pkg_versions)
+            elif isinstance(compatible_packages, list):
+                logger.debug(f"List structure first item: {compatible_packages[0] if compatible_packages else 'empty'}")
+                for pkg in compatible_packages:
+                    if isinstance(pkg, dict) and pkg.get("name") == package_name:
+                        versions.update(pkg.get("versions", []))
+            else:
+                logger.debug(f"Unexpected compatiblePackages type in patch {i}")
                 
-            # Look for the package in the compatiblePackages list
-            for pkg in compatible_packages:
-                if isinstance(pkg, dict) and pkg.get("name") == package_name:
-                    pkg_versions = pkg.get("versions", [])
-                    if isinstance(pkg_versions, list):
-                        versions.update(pkg_versions)
-        
         if versions:
             sorted_versions = natsorted(versions)
-            logger.debug(f"Found compatible versions for {package_name}: {sorted_versions}")
+            logger.debug(f"Final compatible versions for {package_name}: {sorted_versions}")
             return sorted_versions
-        
-        logger.warning(f"No compatible versions found for {package_name}")
+            
+        logger.warning(f"No versions found for {package_name} in any patch")
         return None
         
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse patches.json: {e}")
-        return None
     except Exception as e:
-        logger.error(f"Failed to get compatible versions: {e}")
-        logger.debug("Exception details:", exc_info=True)
+        logger.error(f"Critical error in get_compatible_versions: {e}")
+        logger.debug("Stack trace:", exc_info=True)
         return None
 
 def get_patches_json(source_url: str) -> dict:
