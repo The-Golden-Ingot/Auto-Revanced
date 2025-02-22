@@ -9,11 +9,12 @@ def load_build_rules():
 
 def optimize_apk(input_path, is_merged=False):
     """Optimize APK using APKEditor's capabilities"""
+    input_path = Path(input_path).resolve()  # Get absolute path
     output_file = input_path.parent / f"{input_path.stem}_optimized.apk"
     build_rules = load_build_rules()
     
     # Base command for optimization
-    base_cmd = ["java", "-jar", "APKEditor.jar", "b", "-i", str(input_path), "-o", str(output_file)]
+    base_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "b", "-i", str(input_path), "-o", str(output_file)]
     
     # Add architecture optimization if configured
     if 'architectures' in build_rules:
@@ -27,8 +28,11 @@ def optimize_apk(input_path, is_merged=False):
         if keep_dpi:
             base_cmd.extend(["--keep-dpi", ",".join(keep_dpi)])
     
+    print(f"Running command: {' '.join(base_cmd)}")  # Debug command
     result = subprocess.run(base_cmd, capture_output=True, text=True)
     if result.returncode != 0:
+        print(f"STDOUT: {result.stdout}")  # Debug output
+        print(f"STDERR: {result.stderr}")  # Debug error
         raise RuntimeError(f"APK optimization failed: {result.stderr}")
     
     return output_file
