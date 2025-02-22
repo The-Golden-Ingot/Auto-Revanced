@@ -54,10 +54,17 @@ def merge_splits(input_path):
 
 def process_apk(input_path):
     """Process APK - either merge+optimize or just optimize"""
-    if needs_merging(input_path):
-        return merge_splits(input_path)
-    else:
-        return optimize_apk(input_path)
+    try:
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+            
+        if needs_merging(input_path):
+            return merge_splits(input_path)
+        else:
+            return optimize_apk(input_path)
+    except Exception as e:
+        print(f"Error processing {input_path.name}: {str(e)}")
+        raise
 
 def needs_merging(file_path):
     return file_path.suffix.lower() in ['.apks', '.xapk', '.apkm']
@@ -74,7 +81,10 @@ def should_check_app(app_name):
     return config['source'].get('type', 'apk') in ['bundle', 'split']
 
 if __name__ == "__main__":
-    for apk in Path("downloads").iterdir():
+    for apk in Path("downloads").rglob("*.*"):  # Use rglob to find all files recursively
+        if apk.suffix.lower() not in ['.apk', '.apks', '.xapk', '.apkm']:
+            continue  # Skip non-APK files
+            
         app_name = apk.stem.split('_')[0]
         try:
             print(f"Processing {apk.name}...")
