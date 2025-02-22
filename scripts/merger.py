@@ -27,9 +27,6 @@ def optimize_apk(input_path, is_merged=False):
         if keep_dpi:
             base_cmd.extend(["--keep-dpi", ",".join(keep_dpi)])
     
-    # Add legacy flag for compatibility
-    base_cmd.append("--legacy")
-    
     result = subprocess.run(base_cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"APK optimization failed: {result.stderr}")

@@ -201,8 +201,7 @@ jobs:
           if [[ ! "$apk" == *"_optimized"* ]]; then
             java -jar APKEditor.jar b -i "$apk" -o "${apk%.*}_optimized.apk" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) \
-              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml) \
-              --legacy
+              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml)
           fi
         done
         
