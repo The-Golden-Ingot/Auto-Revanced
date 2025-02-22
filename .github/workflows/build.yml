@@ -235,7 +235,7 @@ jobs:
     - name: Check versions
       id: version-check
       run: |
-        python scripts/version_check.py
+        python scripts/version_check.py --app ${{ matrix.app }}
         # Set updates_found based on versions.json existence and content
         if [ -f "versions.json" ] && [ "$(cat versions.json | jq 'length')" -gt 0 ]; then
           echo "updates_found=1" >> $GITHUB_OUTPUT
@@ -245,8 +245,10 @@ jobs:
       continue-on-error: true
 
     - name: Create release
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        TAG_NAME="patched-$(date +%Y%m%d-%H%M%S)"  # Format: patched-20250221-230800
+        TAG_NAME="patched-$(date +%Y%m%d-%H%M%S)"
         gh release create "$TAG_NAME" \
           --title "Patched Apps $(date '+%Y-%m-%d')" \
           --notes "Automated build of patched applications" \
