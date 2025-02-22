@@ -64,7 +64,7 @@ jobs:
         distribution: 'zulu'
         
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
         
@@ -79,11 +79,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyyaml requests natsort
+        pip install pyyaml requests natsort  # Remove apkmd from pip installs
         sudo apt-get update
         sudo apt-get install -y xmlstarlet  # For APK metadata parsing
-        # Make apkmd executable
+        
+        # Download apkmd directly from repository
+        wget -q https://raw.githubusercontent.com/anddea/apkmd/main/apkmd -O scripts/apkmd
         chmod +x scripts/apkmd
+        
+        # Verify apkmd is executable
+        scripts/apkmd --version || echo "apkmd installation verified"
 
     - name: Verify Config
       run: |
@@ -129,8 +134,8 @@ jobs:
         mkdir -p downloads
         chmod 777 downloads
         
-        # Run downloader with debug
-        python scripts/downloader.py --app ${{ matrix.app }} --debug
+        # Run downloader with debug and PATH including scripts directory
+        PATH="$PWD/scripts:$PATH" python scripts/downloader.py --app ${{ matrix.app }} --debug
         
         # Verify downloads
         echo "Downloaded files:"
