@@ -86,9 +86,9 @@ jobs:
         # Create scripts directory if it doesn't exist
         mkdir -p scripts
         
-        # Download and setup apkmd with error handling
+        # Use our own hosted apkmd version
         echo "Downloading apkmd..."
-        if ! wget -q https://raw.githubusercontent.com/anddea/apkmd/main/apkmd -O scripts/apkmd; then
+        if ! wget -q "https://raw.githubusercontent.com/The-Golden-Ingot/Auto-Revanced/main/scripts/apkmd" -O scripts/apkmd; then
           echo "::error::Failed to download apkmd"
           exit 1
         fi
