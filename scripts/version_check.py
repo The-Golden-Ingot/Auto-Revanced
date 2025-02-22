@@ -32,23 +32,57 @@ def get_patch_version(patch_url):
 def get_compatible_versions(package_name):
     """Get compatible versions for a package from patches.json"""
     try:
-        with open("patches.json") as f:
-            patches = json.load(f)
+        # First try patches.json in current directory
+        patches_file = Path("patches.json")
+        if not patches_file.exists():
+            patches_file = Path("patches.json.2")  # Try the numbered version from wget
+        
+        if not patches_file.exists():
+            logger.error("Could not find patches.json or patches.json.2")
+            return None
+            
+        logger.debug(f"Reading patches from {patches_file}")
+        with open(patches_file) as f:
+            content = f.read().strip()
+            if not content:
+                logger.error("patches.json is empty")
+                return None
+            patches = json.loads(content)
+            
+        if not isinstance(patches, list):
+            logger.error(f"Expected patches.json to contain a list, got {type(patches)}")
+            return None
             
         versions = set()
         for patch in patches:
-            if "compatiblePackages" in patch:
-                # The compatiblePackages field is a dictionary with package names as keys
-                pkg_info = patch["compatiblePackages"].get(package_name)
-                if pkg_info:  # If this package is in compatiblePackages
-                    versions.update(pkg_info)  # Add all compatible versions
+            if not isinstance(patch, dict):
+                continue
+                
+            compatible_packages = patch.get("compatiblePackages", [])
+            if not isinstance(compatible_packages, list):
+                continue
+                
+            # Look for the package in the compatiblePackages list
+            for pkg in compatible_packages:
+                if isinstance(pkg, dict) and pkg.get("name") == package_name:
+                    pkg_versions = pkg.get("versions", [])
+                    if isinstance(pkg_versions, list):
+                        versions.update(pkg_versions)
         
         if versions:
-            return natsorted(versions)  # Return sorted list of versions
+            sorted_versions = natsorted(versions)
+            logger.debug(f"Found compatible versions for {package_name}: {sorted_versions}")
+            return sorted_versions
+        
+        logger.warning(f"No compatible versions found for {package_name}")
+        return None
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse patches.json: {e}")
         return None
     except Exception as e:
         logger.error(f"Failed to get compatible versions: {e}")
-        logger.debug("Exception details:", exc_info=True)  # Add detailed debug logging
+        logger.debug("Exception details:", exc_info=True)
         return None
 
 def get_patches_json(source_url: str) -> dict:
