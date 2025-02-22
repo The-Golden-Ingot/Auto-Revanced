@@ -36,7 +36,8 @@ def generate_apkmd_config(app_config: dict) -> dict:
             "options": {
                 "arch": arch,
                 "outDir": "downloads",
-                "type": app_config['source'].get('type', 'apk')
+                "type": app_config['source'].get('type', 'apk'),
+                "minandroidversion": app_config.get('min_android_version', 21)
             },
             "apps": [{
                 "org": app_config['source']['org'],

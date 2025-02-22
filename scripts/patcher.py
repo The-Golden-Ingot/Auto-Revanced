@@ -31,7 +31,9 @@ def apply_patches(apk_path, app_config):
     
     # Add architecture optimization
     if 'build' in app_config and 'optimize' in app_config['build']:
-        for arch in app_config['build']['optimize'].get('arch', []):
+        # Default to common architectures if none specified
+        archs = app_config['build']['optimize'].get('arch', ['arm64-v8a', 'armeabi-v7a'])
+        for arch in archs:
             if arch != "universal":
                 base_cmd.extend(["--rip-lib", arch])
     

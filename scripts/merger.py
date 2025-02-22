@@ -6,7 +6,7 @@ def merge_splits(input_path):
     output_file = input_path.parent / f"{input_path.stem}_merged.apk"
     
     result = subprocess.run(
-        ["java", "-jar", "APKEditor.jar", "m", "-i", str(input_path), "-o", str(output_file)],
+        ["java", "-jar", "APKEditor.jar", "m", "-i", str(input_path), "-o", str(output_file), "--legacy"],
         capture_output=True,
         text=True
     )
