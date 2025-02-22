@@ -258,7 +258,7 @@ jobs:
       uses: c-hive/gha-remove-artifacts@v1
       with:
         age: ${{ steps.build-rules.outputs.retention_days }} days
-        skip: latest
+        skip-recent: 1  # Keep the most recent artifact instead of using 'skip: latest'
 
     - name: Build components
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
