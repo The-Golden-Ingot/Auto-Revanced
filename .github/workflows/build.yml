@@ -190,6 +190,15 @@ jobs:
     - name: Process APKs with APKEditor
       run: |
         echo "Processing APKs with APKEditor..."
+        
+        # Debug: List current directory contents
+        echo "Current directory contents:"
+        ls -la
+        
+        # Debug: List downloads directory contents
+        echo "Downloads directory contents:"
+        ls -la downloads/
+        
         # First process split APKs
         if [[ "${{ steps.check-splits.outputs.needs_merge }}" == 'true' ]]; then
           python scripts/merger.py
@@ -197,10 +206,19 @@ jobs:
         
         # Then optimize all APKs (including non-split)
         echo "Optimizing all APKs..."
+        if ! find downloads -type f -name '*.apk' | grep -q .; then
+          echo "No APK files found in downloads directory!"
+          exit 1
+        fi
+        
         find downloads -type f -name '*.apk' | while read apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
             output_path="${apk%.*}_optimized.apk"
             echo "Processing $apk -> $output_path"
+            if [ ! -f "$apk" ]; then
+              echo "Error: Input APK not found: $apk"
+              continue
+            fi
             java -jar APKEditor.jar b -i "$apk" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) \
               $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml)
