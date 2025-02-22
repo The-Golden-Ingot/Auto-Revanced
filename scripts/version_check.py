@@ -38,15 +38,17 @@ def get_compatible_versions(package_name):
         versions = set()
         for patch in patches:
             if "compatiblePackages" in patch:
-                for pkg in patch["compatiblePackages"]:
-                    if pkg["name"] == package_name and pkg["versions"]:
-                        versions.update(pkg["versions"])
+                # The compatiblePackages field is a dictionary with package names as keys
+                pkg_info = patch["compatiblePackages"].get(package_name)
+                if pkg_info:  # If this package is in compatiblePackages
+                    versions.update(pkg_info)  # Add all compatible versions
         
         if versions:
             return natsorted(versions)  # Return sorted list of versions
         return None
     except Exception as e:
         logger.error(f"Failed to get compatible versions: {e}")
+        logger.debug("Exception details:", exc_info=True)  # Add detailed debug logging
         return None
 
 def get_patches_json(source_url: str) -> dict:
