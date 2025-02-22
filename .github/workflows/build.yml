@@ -121,13 +121,9 @@ jobs:
         wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"
 
     - name: Download APKs
-      env:
-        PATH: /usr/bin:${{ github.workspace }}/scripts:$PATH
       run: |
-        # Get patches.json first
-        release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
-        patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
-        wget -nv "$patches_json_url"
+        # Get patches.json from previous step
+        cp patches.json patches.workflow.json  # Preserve original
         
         # Create downloads directory with proper permissions
         mkdir -p downloads

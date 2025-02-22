@@ -73,16 +73,28 @@ def get_compatible_versions(app_package: str) -> list:
 
 def process_patches_content(content: str, app_package: str) -> list:
     """Process patches.json content"""
-    patches = json.loads(content)
-    all_versions = set()
-    
-    for patch in patches:
-        compatible_packages = patch.get("compatiblePackages", {})
-        pkg_versions = compatible_packages.get(app_package, [])
-        if isinstance(pkg_versions, list):
-            all_versions.update(pkg_versions)
-    
-    return natsorted(all_versions) if all_versions else []
+    try:
+        patches = json.loads(content)
+        all_versions = set()
+        
+        for patch in patches:
+            # Handle different patch format versions
+            compatible_packages = patch.get("compatiblePackages")
+            if not compatible_packages:
+                continue
+                
+            for pkg in compatible_packages:
+                if pkg.get("name") == app_package:
+                    versions = pkg.get("versions")
+                    if isinstance(versions, list):
+                        all_versions.update(versions)
+                    elif isinstance(versions, str):
+                        all_versions.add(versions)
+        
+        return natsorted(all_versions) if all_versions else []
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in patches file: {str(e)}")
+        return []
 
 def get_remote_compatible_versions(app_package: str) -> list:
     """Fallback to downloading patches.json directly"""
