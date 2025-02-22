@@ -146,7 +146,8 @@ def download_apk(app_name: str, debug: bool = False):
         "--arch", config.get('arch', 'universal'),
         "--type", config['source'].get('type', 'apk'),
         "--outdir", "downloads",
-        "--outfile", config.get('package', repo)
+        "--outfile", f"{config['package']}",
+        "--flatten"
     ]
     
     if debug:

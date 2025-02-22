@@ -58,11 +58,11 @@ if __name__ == "__main__":
         with open(config_file) as f:
             app_config = yaml.safe_load(f)
         
-        # Look for merged APKs
-        apks = list(Path("downloads").glob(f"{args.app}*_merged.apk"))
+        # Look for merged APKs in all subdirectories
+        apks = list(Path("downloads").rglob(f"{app_config['package']}*_merged.apk"))
         if not apks:
-            # Try non-merged APKs
-            apks = list(Path("downloads").glob(f"{args.app}*.apk"))
+            # Try non-merged APKs in all subdirectories
+            apks = list(Path("downloads").rglob(f"{app_config['package']}*.apk"))
         
         if not apks:
             raise RuntimeError(f"No APK found for {args.app}")
