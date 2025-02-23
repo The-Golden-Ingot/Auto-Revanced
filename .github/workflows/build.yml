@@ -200,31 +200,34 @@ jobs:
       run: |
         echo "Processing APKs..."
         
-        # First patch the APK with ReVanced
-        python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
-        
-        # Then optimize the patched APK with APKEditor
-        find dist -type f -name '*_patched.apk' | while read -r apk; do
+        # First optimize the original APK with APKEditor
+        find downloads -type f -name '*.apk' -o -name '*.apks' -o -name '*.xapk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
-            output_path="${apk%.*}_optimized.apk"
+            output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
             
             # Create temp directory path
-            temp_dir=$(mktemp -u)
+            temp_dir=$(mktemp -d)
             
-            # Decode APK first
+            # Handle split APKs
+            if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
+              merged_path="dist/$(basename "${apk%.*}")_merged.apk"
+              java -jar APKEditor.jar m -i "$apk" -o "$merged_path" --legacy
+              apk="$merged_path"
+            fi
+            
+            # Decode and optimize
             java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"
-            
-            # Build optimized APK
             java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
-            # Clean up
             rm -rf "$temp_dir"
-            rm "$apk"  # Remove unoptimized patched APK
           fi
         done
         
+        # Then patch the optimized APKs with ReVanced
+        python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
+
     - name: Load build rules
       id: build-rules
       run: |

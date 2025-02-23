@@ -6,10 +6,6 @@ import sys
 
 def apply_patches(apk_path, app_config):
     """Apply ReVanced patches to an APK"""
-    # Skip if this is an optimized APK
-    if "_optimized" in apk_path.stem:
-        return apk_path
-        
     output_apk = Path("dist") / f"{apk_path.stem}_patched.apk"
     
     base_cmd = [

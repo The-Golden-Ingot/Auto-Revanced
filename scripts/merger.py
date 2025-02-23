@@ -106,9 +106,10 @@ def process_apk(input_path):
             raise FileNotFoundError(f"Input file not found: {input_path}")
             
         if needs_merging(input_path):
-            return merge_splits(input_path)
+            merged = merge_splits(input_path)
+            return optimize_apk(merged)  # Optimize after merging
         else:
-            return optimize_apk(input_path)
+            return optimize_apk(input_path)  # Direct optimization
     except Exception as e:
         print(f"Error processing {input_path.name}: {str(e)}")
         raise
