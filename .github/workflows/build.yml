@@ -280,31 +280,37 @@ jobs:
             continue
           fi
           
-          # Enhanced XML deduplication
+          # Enhanced XML deduplication with namespace handling
           echo "Deduplicating resource files..."
-          for xml_file in "$temp_dir"/res/{font/google_sans*.xml,font/youtube*.xml,xml/settings_fragment.xml}; do
+          for xml_file in "$temp_dir"/res/{font/*.xml,xml/*.xml}; do
             if [ -f "$xml_file" ]; then
               echo "Processing $xml_file"
-              # Create temporary file for processing
               tmp_file="${xml_file}.tmp"
               
-              # Use xmlstarlet to format and normalize the XML first
-              if ! xmlstarlet format --recover "$xml_file" > "$tmp_file" 2>/dev/null; then
-                # If xmlstarlet fails, try simple line-based deduplication
-                awk '!seen[$0]++' "$xml_file" > "$tmp_file"
+              # Normalize XML structure and remove duplicate attributes
+              xmlstarlet ed --pf --inplace \
+                -d '//@*[name() = following-sibling::attribute::name()]' \
+                "$xml_file" 2>/dev/null || true
+              
+              # Additional attribute deduplication using awk
+              awk '
+                BEGIN { RS=" "; ORS=" " }
+                /android:/ || /app:/ {
+                  if (!seen[$0]++) {
+                    printf "%s", $0
+                  }
+                }
+                !/android:/ && !/app:/ { print }
+                END { printf "\n" }
+              ' "$xml_file" | tr -s ' ' > "$tmp_file"
+              
+              # Validate XML format
+              if xmlstarlet val -q "$tmp_file"; then
+                mv "$tmp_file" "$xml_file"
+              else
+                echo "::warning::XML validation failed, using original file"
+                rm -f "$tmp_file"
               fi
-              
-              # Remove duplicate attributes using sed
-              sed -i.bak -E '
-                # Remove duplicate android:* attributes, keeping the first occurrence
-                s/android:[^= ]+="[^"]*"[[:space:]]+android:[^= ]+="[^"]*"/\1/g
-                # Remove duplicate app:* attributes
-                s/app:[^= ]+="[^"]*"[[:space:]]+app:[^= ]+="[^"]*"/\1/g
-              ' "$tmp_file"
-              
-              # Replace original with cleaned version
-              mv "$tmp_file" "$xml_file"
-              rm -f "${xml_file}.bak"
             fi
           done
           
