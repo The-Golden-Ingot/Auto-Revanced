@@ -216,28 +216,14 @@ jobs:
 
     - name: Process APKs
       if: steps.version-check.outputs.build_needed == 'true'
-      env:
-        TMPDIR: ${{ runner.temp }}/apk_processing
       run: |
-        # Cleanup any previous temp directories
-        rm -rf "${{ runner.temp }}/apk_processing" || true
-        mkdir -p "${{ runner.temp }}/apk_processing"
-        
         echo "Processing APKs..."
+        mkdir -p dist
+        
         find downloads -type f -name '*.apk' -o -name '*.apks' -o -name '*.xapk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
             output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
-            
-            # Create and verify temp directory
-            temp_dir=$(mktemp -d -p "${{ runner.temp }}/apk_processing" -t "apk_XXXXXX")
-            if [ ! -d "$temp_dir" ]; then
-              echo "::error::Failed to create temp directory"
-              exit 1
-            fi
-            
-            # Ensure temp directory is empty
-            rm -rf "${temp_dir:?}"/* || true
             
             # Handle split APKs
             if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
@@ -248,22 +234,22 @@ jobs:
             
             # Decode and optimize with error handling
             set -x  # Enable debug output
-            if ! java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"; then
+            if ! java -jar APKEditor.jar d -i "$apk" -o "$output_path.decoded"; then
               echo "::error::APK decode failed"
-              rm -rf "$temp_dir"
+              rm -rf "$output_path.decoded"
               exit 1
             fi
             
-            if ! java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
+            if ! java -jar APKEditor.jar b -i "$output_path.decoded" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml); then
               echo "::error::APK build failed"
-              rm -rf "$temp_dir"
+              rm -rf "$output_path.decoded"
               exit 1
             fi
             set +x
             
-            # Cleanup temp dir immediately
-            rm -rf "$temp_dir"
+            # Cleanup decoded directory
+            rm -rf "$output_path.decoded"
           fi
         done
         
