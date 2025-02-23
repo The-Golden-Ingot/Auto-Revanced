@@ -9,7 +9,7 @@ def load_build_rules():
 
 def filter_dpi_resources(decoded_dir, keep_dpis):
     """Filter DPI-specific resources, keeping only specified DPIs"""
-    res_dir = Path(decoded_dir) / "base" / "res"
+    res_dir = Path(decoded_dir) / "res"
     if not res_dir.exists():
         return
         
@@ -60,7 +60,7 @@ def optimize_apk(input_path, is_merged=False):
     
     # Build optimized APK
     base_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "b",
-                "-i", str(temp_dir / "base"), "-o", str(output_file)]
+                "-i", str(temp_dir), "-o", str(output_file)]
     
     # Add architecture optimization if configured
     if 'architectures' in build_rules:

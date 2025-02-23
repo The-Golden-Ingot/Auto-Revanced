@@ -208,8 +208,8 @@ jobs:
             # Decode APK first - APKEditor will create the directory
             java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"
             
-            # Build optimized APK from decoded directory (point to base subdirectory)
-            java -jar APKEditor.jar b -i "$temp_dir/base" -o "$output_path" \
+            # Build optimized APK from decoded directory (remove base/ reference)
+            java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
             # Clean up temp directory
