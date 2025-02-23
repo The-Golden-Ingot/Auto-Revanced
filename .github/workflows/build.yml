@@ -220,57 +220,70 @@ jobs:
         echo "Processing APKs..."
         mkdir -p dist
         
+        # Verify APKEditor exists and is executable
+        if ! [ -f APKEditor.jar ]; then
+          echo "::error::APKEditor.jar missing"
+          exit 1
+        fi
+        
         find downloads -type f -name '*.apk' -o -name '*.apks' -o -name '*.xapk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
             output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
             
-            # Extract version info before processing
-            app_version=$(basename "$apk" | grep -oP '\d+\.\d+\.\d+')
-            patch_version=$(date +%Y%m%d)
-
             # Create temp directory with improved cleanup
             temp_dir=$(mktemp -d)
             trap 'rm -rf "$temp_dir"' EXIT
+
+            # Add debug output for APKEditor
+            echo "Java version: $(java --version)"
+            echo "APKEditor info: $(ls -lh APKEditor.jar)"
             
-            # Decode APK with error handling
-            if ! java -jar APKEditor.jar d -i "$apk" -o "$temp_dir/decoded"; then
+            # Decode APK with verbose output
+            if ! java -jar APKEditor.jar d -i "$apk" -o "$temp_dir/decoded" 2>&1 | tee decode.log; then
               echo "::error::Failed to decode $apk"
+              echo "=== DECODE LOG ==="
+              cat decode.log
               continue
             fi
 
             # XML processing with better error handling
             echo "Processing XML files..."
             find "$temp_dir/decoded" -type f -name '*.xml' | while read -r xml_file; do
-              # Skip empty files
               [[ -s "$xml_file" ]] || continue
               
-              # Process with xmlstarlet and validate
-              if xmlstarlet ed \
+              # Add XML validation timeout
+              if ! timeout 5s xmlstarlet ed \
                 -d '//namespace::*[name()=""]' \
                 -d '//comment()' \
-                "$xml_file" > "${xml_file}.tmp" && \
-                xmllint --noout "${xml_file}.tmp"
-              then
+                "$xml_file" > "${xml_file}.tmp"; then
+                echo "::warning::XML processing timed out for $xml_file"
+                rm -f "${xml_file}.tmp"
+                continue
+              fi
+              
+              if xmllint --noout "${xml_file}.tmp"; then
                 mv "${xml_file}.tmp" "$xml_file"
               else
-                echo "::warning::XML validation failed for $xml_file, using original"
+                echo "::warning::XML validation failed for $xml_file"
                 rm -f "${xml_file}.tmp"
               fi
             done
 
-            # Rebuild APK with architecture filtering
+            # Rebuild with resource checks
             echo "Rebuilding APK..."
             if ! java -jar APKEditor.jar b -i "$temp_dir/decoded" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml); then
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) 2>&1 | tee build.log; then
               echo "::error::Failed to rebuild $apk"
+              echo "=== BUILD LOG ==="
+              cat build.log
               continue
             fi
 
-            # Apply patches
-            echo "Applying ReVanced patches..."
-            if ! python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"; then
-              echo "::warning::Patching failed for $apk, but continuing..."
+            # Verify output file exists
+            if ! [ -f "$output_path" ]; then
+              echo "::error::Output file not created: $output_path"
+              continue
             fi
           fi
         done
