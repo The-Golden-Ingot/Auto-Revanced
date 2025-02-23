@@ -187,65 +187,34 @@ jobs:
         wget -q "https://github.com/REAndroid/APKEditor/releases/latest/download/$jar_name" -O APKEditor.jar
         echo "Downloaded APKEditor: $(ls -lh APKEditor.jar)"
         
-    - name: Process APKs with APKEditor
+    - name: Process APKs
       run: |
-        echo "Processing APKs with APKEditor..."
+        echo "Processing APKs..."
         
-        # First process split APKs
-        if [[ "${{ steps.check-splits.outputs.needs_merge }}" == 'true' ]]; then
-          python scripts/merger.py
-        fi
-
-        # Process APKs from root directory
-        find downloads -type f -name '*.apk' | while read -r apk; do
+        # First patch the APK with ReVanced
+        python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
+        
+        # Then optimize the patched APK with APKEditor
+        find dist -type f -name '*_patched.apk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
             output_path="${apk%.*}_optimized.apk"
-            echo "Processing $apk -> $output_path"
+            echo "Optimizing $apk -> $output_path"
             
-            # Create temp directory path (don't create actual directory)
+            # Create temp directory path
             temp_dir=$(mktemp -u)
             
-            # Decode APK first - APKEditor will create the directory
+            # Decode APK first
             java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"
             
-            # Build optimized APK from decoded directory (remove base/ reference)
+            # Build optimized APK
             java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
-            # Clean up temp directory
+            # Clean up
             rm -rf "$temp_dir"
+            rm "$apk"  # Remove unoptimized patched APK
           fi
         done
-        
-    - name: Apply ReVanced patches
-      run: |
-        mkdir -p ${{ env.DIST_DIR }}
-        
-        # Download latest patches and CLI
-        release_info=$(curl -s "https://api.github.com/repos/anddea/revanced-patches/releases" | jq '[.[] | select(.prerelease or .draft | not)][0]')
-        patches_json_url=$(echo "$release_info" | jq -r '.assets[] | select(.name=="patches.json") | .browser_download_url')
-        patches_rvp_url=$(echo "$release_info" | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
-        
-        # Add CLI URL fetch
-        cli_release_info=$(curl -s "https://api.github.com/repos/inotia00/revanced-cli/releases/latest")
-        cli_jar_url=$(echo "$cli_release_info" | jq -r '.assets[] | select(.name | startswith("revanced-cli-") and endswith("-all.jar")) | .browser_download_url')
-        
-        wget -nv "$patches_rvp_url"
-        wget -nv "$patches_json_url"
-        wget -nv "$cli_jar_url" -O "revanced-cli-all.jar"
-        
-        if [ -f "versions.lock" ]; then
-          versions=$(python -c "import yaml;print(yaml.safe_load(open('versions.lock'))['${{ matrix.app }}']['apk_version'])")
-          app_version=$(echo $versions | cut -d' ' -f1)
-          patch_version=$(echo $versions | cut -d' ' -f2)
-        else
-          # Use latest versions when no lock file exists
-          app_version=$(python scripts/version_check.py --app ${{ matrix.app }} --get-latest)
-          patch_version=$(echo "$release_info" | jq -r .tag_name | sed 's/^v//')
-        fi
-        
-        echo "Starting patching process for ${{ matrix.app }} (version: $app_version, patches: $patch_version)"
-        python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
         
     - name: Load build rules
       id: build-rules
