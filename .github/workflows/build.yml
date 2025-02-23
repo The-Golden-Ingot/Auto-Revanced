@@ -232,6 +232,9 @@ jobs:
               apk="$merged_path"
             fi
             
+            # Remove existing output files
+            rm -f "$output_path" "$output_path.decoded"
+            
             # Decode and optimize with error handling
             set -x  # Enable debug output
             if ! java -jar APKEditor.jar d -i "$apk" -o "$output_path.decoded"; then
@@ -264,6 +267,10 @@ jobs:
           # Create temporary directory for resource deduplication
           temp_dir="$apk.temp"
           mkdir -p "$temp_dir"
+          
+          # Remove existing output files before processing
+          patched_apk="dist/$(basename "${apk%.*}")_patched.apk"
+          rm -f "$patched_apk"
           
           # Extract APK to temp directory
           unzip -q "$apk" -d "$temp_dir"
