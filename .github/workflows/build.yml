@@ -266,14 +266,19 @@ jobs:
           
           # Create temporary directory for resource deduplication
           temp_dir="$apk.temp"
+          rm -rf "$temp_dir"  # Remove existing temp dir if any
           mkdir -p "$temp_dir"
           
           # Remove existing output files before processing
           patched_apk="dist/$(basename "${apk%.*}")_patched.apk"
           rm -f "$patched_apk"
           
-          # Extract APK to temp directory
-          unzip -q "$apk" -d "$temp_dir"
+          # Extract APK to temp directory with force overwrite
+          if ! unzip -o -q "$apk" -d "$temp_dir"; then
+            echo "::error::Failed to extract APK"
+            rm -rf "$temp_dir"
+            continue
+          fi
           
           # Remove duplicate resource attributes
           for xml in "$temp_dir/res/font/"*.xml "$temp_dir/res/xml/settings_fragment.xml"; do
@@ -282,9 +287,14 @@ jobs:
             fi
           done
           
-          # Repack APK
+          # Repack APK with force overwrite
           cd "$temp_dir"
-          zip -qr "../$(basename "$apk")" .
+          if ! zip -qr -0 "../$(basename "$apk")" .; then
+            echo "::error::Failed to repack APK"
+            cd "$original_dir"
+            rm -rf "$temp_dir"
+            continue
+          fi
           cd "$original_dir"  # Restore original directory
           
           # Clean up
