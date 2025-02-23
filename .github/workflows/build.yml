@@ -208,7 +208,6 @@ jobs:
             
             # Build optimized APK
             java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
-              --framework-path "$ANDROID_HOME/platforms/android-33/android.jar" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
             # Clean up
