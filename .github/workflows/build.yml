@@ -202,10 +202,10 @@ jobs:
             output_path="${apk%.*}_optimized.apk"
             echo "Processing $apk -> $output_path"
             
-            # Create temp directory for decoding
-            temp_dir=$(mktemp -d)
+            # Create temp directory path (don't create actual directory)
+            temp_dir=$(mktemp -u)
             
-            # Decode APK first
+            # Decode APK first - APKEditor will create the directory
             java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"
             
             # Build optimized APK from decoded directory (point to base subdirectory)
