@@ -53,7 +53,7 @@ jobs:
       packages: write  # Needed if uploading to packages
       actions: write  # Needed for workflow interactions
     
-    if: contains(fromJson(needs.prepare.outputs.matrix), app)
+    if: ${{ fromJson(needs.prepare.outputs.matrix) != '[]' }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
