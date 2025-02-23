@@ -280,37 +280,23 @@ jobs:
             continue
           fi
           
-          # Enhanced XML deduplication with namespace handling
+          # Enhanced XML deduplication with proper XML handling
           echo "Deduplicating resource files..."
-          for xml_file in "$temp_dir"/res/{font/*.xml,xml/*.xml}; do
-            if [ -f "$xml_file" ]; then
-              echo "Processing $xml_file"
-              tmp_file="${xml_file}.tmp"
-              
-              # Normalize XML structure and remove duplicate attributes
-              xmlstarlet ed --pf --inplace \
-                -d '//@*[name() = following-sibling::attribute::name()]' \
-                "$xml_file" 2>/dev/null || true
-              
-              # Additional attribute deduplication using awk
-              awk '
-                BEGIN { RS=" "; ORS=" " }
-                /android:/ || /app:/ {
-                  if (!seen[$0]++) {
-                    printf "%s", $0
-                  }
-                }
-                !/android:/ && !/app:/ { print }
-                END { printf "\n" }
-              ' "$xml_file" | tr -s ' ' > "$tmp_file"
-              
-              # Validate XML format
-              if xmlstarlet val -q "$tmp_file"; then
-                mv "$tmp_file" "$xml_file"
-              else
-                echo "::warning::XML validation failed, using original file"
-                rm -f "$tmp_file"
-              fi
+          set -euo pipefail
+          find "$temp_dir"/res -type f \( -name '*.xml' -o -name '*.xml.*' \) | while read -r xml_file; do
+            echo "Processing $xml_file"
+            tmp_file="${xml_file}.tmp"
+            
+            # Normalize XML structure and remove duplicate attributes using xmlstarlet
+            if xmlstarlet ed --pf --inplace \
+              -d '//@*[name() = preceding-sibling::attribute::name()]' \
+              -d '//namespace::*[name()=""]' \
+              -d '//comment()' \
+              "$xml_file"; then
+              echo "Successfully processed $xml_file"
+            else
+              echo "::warning::XML processing failed for $xml_file, using original"
+              rm -f "$tmp_file"
             fi
           done
           
