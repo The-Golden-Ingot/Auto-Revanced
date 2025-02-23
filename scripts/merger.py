@@ -1,6 +1,9 @@
 import subprocess
 from pathlib import Path
 import yaml
+import os
+import tempfile
+import shutil
 
 def load_build_rules():
     """Load global build rules"""
@@ -39,46 +42,48 @@ def optimize_apk(input_path, is_merged=False):
     """Optimize APK using APKEditor's capabilities"""
     input_path = Path(input_path).resolve()
     output_file = input_path.parent / f"{input_path.stem}_optimized.apk"
-    build_rules = load_build_rules()
     
-    # Create temp directory for decoded APK
-    temp_dir = Path(f"/tmp/apkeditor_{input_path.stem}")
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    # Create unique temp directory using system temp
+    temp_dir = Path(tempfile.mkdtemp(prefix="apkeditor_"))
     
-    # Decode APK first
-    decode_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "d", 
-                 "-i", str(input_path), "-o", str(temp_dir)]
-    result = subprocess.run(decode_cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"APK decode failed: {result.stderr}")
+    # Remove existing temp dir if needed
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
     
-    # Filter DPI resources if configured
-    if 'dpi' in build_rules:
-        keep_dpi = build_rules['dpi'].get('keep', [])
-        if keep_dpi:
-            filter_dpi_resources(temp_dir, keep_dpi)
-    
-    # Build optimized APK
-    base_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "b",
-                "-i", str(temp_dir), "-o", str(output_file)]
-    
-    # Add architecture optimization if configured
-    if 'architectures' in build_rules:
-        for arch in build_rules['architectures'].get('strip', []):
-            base_cmd.extend(["--remove-lib", arch])
-    
-    print(f"Running build command: {' '.join(base_cmd)}")
-    result = subprocess.run(base_cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"STDOUT: {result.stdout}")
-        print(f"STDERR: {result.stderr}")
-        raise RuntimeError(f"APK optimization failed: {result.stderr}")
-    
-    # Cleanup
-    import shutil
-    shutil.rmtree(temp_dir)
-    
-    return output_file
+    try:
+        # Decode APK first
+        decode_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "d", 
+                     "-i", str(input_path), "-o", str(temp_dir)]
+        result = subprocess.run(decode_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"APK decode failed: {result.stderr}")
+        
+        # Filter DPI resources if configured
+        if 'dpi' in build_rules:
+            keep_dpi = build_rules['dpi'].get('keep', [])
+            if keep_dpi:
+                filter_dpi_resources(temp_dir, keep_dpi)
+        
+        # Build optimized APK
+        base_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "b",
+                    "-i", str(temp_dir), "-o", str(output_file)]
+        
+        # Add architecture optimization if configured
+        if 'architectures' in build_rules:
+            for arch in build_rules['architectures'].get('strip', []):
+                base_cmd.extend(["--remove-lib", arch])
+        
+        print(f"Running build command: {' '.join(base_cmd)}")
+        result = subprocess.run(base_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"STDOUT: {result.stdout}")
+            print(f"STDERR: {result.stderr}")
+            raise RuntimeError(f"APK optimization failed: {result.stderr}")
+        
+        return output_file
+    finally:
+        # Always clean up temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 def merge_splits(input_path):
     """Merge split APKs and optimize the result"""

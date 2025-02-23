@@ -208,10 +208,22 @@ jobs:
           echo "build_needed=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Load build rules
+      id: build-rules
+      run: |
+        retention_days=$(python -c "import yaml; print(yaml.safe_load(open('configs/build_rules.yaml'))['global']['retention_days'])")
+        echo "retention_days=$retention_days" >> $GITHUB_OUTPUT
+
     - name: Process APKs
       if: steps.version-check.outputs.build_needed == 'true'
+      env:
+        TMPDIR: ${{ runner.temp }}  # Use runner's temp directory
       run: |
+        # Add cleanup at start
+        rm -rf ${{ runner.temp }}/apkeditor_*
+        
         echo "Processing APKs..."
+        # Now can safely reference build rules
         
         # First optimize the original APK with APKEditor
         find downloads -type f -name '*.apk' -o -name '*.apks' -o -name '*.xapk' | while read -r apk; do
@@ -241,11 +253,10 @@ jobs:
         # Then patch the optimized APKs with ReVanced
         python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"
 
-    - name: Load build rules
-      id: build-rules
+    - name: Build components
+      if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true' 
       run: |
-        retention_days=$(python -c "import yaml; print(yaml.safe_load(open('configs/build_rules.yaml'))['global']['retention_days'])")
-        echo "retention_days=$retention_days" >> $GITHUB_OUTPUT
+        # Actual component building logic
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -269,8 +280,3 @@ jobs:
       with:
         age: ${{ steps.build-rules.outputs.retention_days }} days
         skip-recent: 1  # Keep the most recent artifact instead of using 'skip: latest'
-
-    - name: Build components
-      if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
-      run: |
-        # Existing build steps
