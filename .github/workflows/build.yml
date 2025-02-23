@@ -262,7 +262,6 @@ jobs:
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       run: |
         # Existing build steps
-
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
       with:
