@@ -217,22 +217,20 @@ jobs:
     - name: Process APKs
       if: steps.version-check.outputs.build_needed == 'true'
       env:
-        TMPDIR: ${{ runner.temp }}  # Use runner's temp directory
+        TMPDIR: ${{ runner.temp }}/apk_processing  # Isolate our temp files
       run: |
-        # Add cleanup at start
-        rm -rf ${{ runner.temp }}/apkeditor_*
+        # Cleanup any previous temp directories
+        rm -rf "${{ runner.temp }}/apk_processing" || true
+        mkdir -p "${{ runner.temp }}/apk_processing"
         
         echo "Processing APKs..."
-        # Now can safely reference build rules
-        
-        # First optimize the original APK with APKEditor
         find downloads -type f -name '*.apk' -o -name '*.apks' -o -name '*.xapk' | while read -r apk; do
           if [[ ! "$apk" == *"_optimized"* ]]; then
             output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
             
-            # Create temp directory path
-            temp_dir=$(mktemp -d)
+            # Create unique temp directory per APK
+            temp_dir=$(mktemp -d -p "${{ runner.temp }}/apk_processing" -t apk.XXXXXX)
             
             # Handle split APKs
             if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
@@ -241,11 +239,14 @@ jobs:
               apk="$merged_path"
             fi
             
-            # Decode and optimize
-            java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"
+            # Decode and optimize with error handling
+            set -x  # Enable debug output
+            java -jar APKEditor.jar d -i "$apk" -o "$temp_dir" || { echo "::error::APK decode failed"; exit 1; }
             java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) || { echo "::error::APK build failed"; exit 1; }
+            set +x
             
+            # Cleanup temp dir immediately
             rm -rf "$temp_dir"
           fi
         done
