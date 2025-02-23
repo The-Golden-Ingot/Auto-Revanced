@@ -217,7 +217,7 @@ jobs:
     - name: Process APKs
       if: steps.version-check.outputs.build_needed == 'true'
       env:
-        TMPDIR: ${{ runner.temp }}/apk_processing  # Isolate our temp files
+        TMPDIR: ${{ runner.temp }}/apk_processing
       run: |
         # Cleanup any previous temp directories
         rm -rf "${{ runner.temp }}/apk_processing" || true
@@ -229,8 +229,15 @@ jobs:
             output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
             
-            # Create unique temp directory per APK
-            temp_dir=$(mktemp -d -p "${{ runner.temp }}/apk_processing" -t apk.XXXXXX)
+            # Create and verify temp directory
+            temp_dir=$(mktemp -d -p "${{ runner.temp }}/apk_processing" -t "apk_XXXXXX")
+            if [ ! -d "$temp_dir" ]; then
+              echo "::error::Failed to create temp directory"
+              exit 1
+            fi
+            
+            # Ensure temp directory is empty
+            rm -rf "${temp_dir:?}"/* || true
             
             # Handle split APKs
             if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
@@ -241,9 +248,18 @@ jobs:
             
             # Decode and optimize with error handling
             set -x  # Enable debug output
-            java -jar APKEditor.jar d -i "$apk" -o "$temp_dir" || { echo "::error::APK decode failed"; exit 1; }
-            java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) || { echo "::error::APK build failed"; exit 1; }
+            if ! java -jar APKEditor.jar d -i "$apk" -o "$temp_dir"; then
+              echo "::error::APK decode failed"
+              rm -rf "$temp_dir"
+              exit 1
+            fi
+            
+            if ! java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml); then
+              echo "::error::APK build failed"
+              rm -rf "$temp_dir"
+              exit 1
+            fi
             set +x
             
             # Cleanup temp dir immediately
