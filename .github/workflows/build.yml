@@ -225,97 +225,53 @@ jobs:
             output_path="dist/$(basename "${apk%.*}")_optimized.apk"
             echo "Optimizing $apk -> $output_path"
             
-            # Handle split APKs
-            if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
-              merged_path="dist/$(basename "${apk%.*}")_merged.apk"
-              python scripts/merger.py --input "$apk" --output "$merged_path"
-              apk="$merged_path"
+            # Extract version info before processing
+            app_version=$(basename "$apk" | grep -oP '\d+\.\d+\.\d+')
+            patch_version=$(date +%Y%m%d)
+
+            # Create temp directory with improved cleanup
+            temp_dir=$(mktemp -d)
+            trap 'rm -rf "$temp_dir"' EXIT
+            
+            # Decode APK with error handling
+            if ! java -jar APKEditor.jar d -i "$apk" -o "$temp_dir/decoded"; then
+              echo "::error::Failed to decode $apk"
+              continue
             fi
-            
-            # Remove existing output files
-            rm -f "$output_path" "$output_path.decoded"
-            
-            # Decode and optimize with error handling
-            set -x  # Enable debug output
-            if ! java -jar APKEditor.jar d -i "$apk" -o "$output_path.decoded"; then
-              echo "::error::APK decode failed"
-              rm -rf "$output_path.decoded"
-              exit 1
-            fi
-            
-            if ! java -jar APKEditor.jar b -i "$output_path.decoded" -o "$output_path" \
+
+            # XML processing with better error handling
+            echo "Processing XML files..."
+            find "$temp_dir/decoded" -type f -name '*.xml' | while read -r xml_file; do
+              # Skip empty files
+              [[ -s "$xml_file" ]] || continue
+              
+              # Process with xmlstarlet and validate
+              if xmlstarlet ed \
+                -d '//namespace::*[name()=""]' \
+                -d '//comment()' \
+                "$xml_file" > "${xml_file}.tmp" && \
+                xmllint --noout "${xml_file}.tmp"
+              then
+                mv "${xml_file}.tmp" "$xml_file"
+              else
+                echo "::warning::XML validation failed for $xml_file, using original"
+                rm -f "${xml_file}.tmp"
+              fi
+            done
+
+            # Rebuild APK with architecture filtering
+            echo "Rebuilding APK..."
+            if ! java -jar APKEditor.jar b -i "$temp_dir/decoded" -o "$output_path" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml); then
-              echo "::error::APK build failed"
-              rm -rf "$output_path.decoded"
-              exit 1
+              echo "::error::Failed to rebuild $apk"
+              continue
             fi
-            set +x
-            
-            # Cleanup decoded directory
-            rm -rf "$output_path.decoded"
-          fi
-        done
-        
-        # Then patch the optimized APKs with ReVanced
-        echo "Patching APKs with ReVanced..."
-        for apk in dist/*_optimized.apk; do
-          echo "Processing $apk..."
-          
-          # Store original working directory
-          original_dir="$PWD"
-          
-          # Create temporary directory for resource deduplication
-          temp_dir="$apk.temp"
-          rm -rf "$temp_dir"  # Remove existing temp dir if any
-          mkdir -p "$temp_dir"
-          
-          # Remove existing output files before processing
-          patched_apk="dist/$(basename "${apk%.*}")_patched.apk"
-          rm -f "$patched_apk"
-          
-          # Extract APK to temp directory with force overwrite
-          if ! unzip -o -q "$apk" -d "$temp_dir"; then
-            echo "::error::Failed to extract APK"
-            rm -rf "$temp_dir"
-            continue
-          fi
-          
-          # Enhanced XML deduplication with proper XML handling
-          echo "Deduplicating resource files..."
-          set -euo pipefail
-          find "$temp_dir"/res -type f \( -name '*.xml' -o -name '*.xml.*' \) | while read -r xml_file; do
-            echo "Processing $xml_file"
-            tmp_file="${xml_file}.tmp"
-            
-            # Normalize XML structure and remove duplicate attributes using xmlstarlet
-            if xmlstarlet ed --pf --inplace \
-              -d '//@*[name() = preceding-sibling::attribute::name()]' \
-              -d '//namespace::*[name()=""]' \
-              -d '//comment()' \
-              "$xml_file"; then
-              echo "Successfully processed $xml_file"
-            else
-              echo "::warning::XML processing failed for $xml_file, using original"
-              rm -f "$tmp_file"
+
+            # Apply patches
+            echo "Applying ReVanced patches..."
+            if ! python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"; then
+              echo "::warning::Patching failed for $apk, but continuing..."
             fi
-          done
-          
-          # Repack APK with force overwrite
-          cd "$temp_dir"
-          if ! zip -qr -0 "../$(basename "$apk")" .; then
-            echo "::error::Failed to repack APK"
-            cd "$original_dir"
-            rm -rf "$temp_dir"
-            continue
-          fi
-          cd "$original_dir"  # Restore original directory
-          
-          # Clean up
-          rm -rf "$temp_dir"
-          
-          # Apply patches from project root
-          if ! python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"; then
-            echo "::warning::Patching failed for $apk, but continuing..."
           fi
         done
 
