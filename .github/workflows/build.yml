@@ -187,6 +187,15 @@ jobs:
         wget -q "https://github.com/REAndroid/APKEditor/releases/latest/download/$jar_name" -O APKEditor.jar
         echo "Downloaded APKEditor: $(ls -lh APKEditor.jar)"
         
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        sdk-version: '33'
+        
+    - name: Install build tools
+      run: |
+        yes | sdkmanager "platforms;android-33" "build-tools;33.0.2"
+
     - name: Process APKs
       run: |
         echo "Processing APKs..."
@@ -261,11 +270,3 @@ jobs:
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       run: |
         # Existing build steps
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        sdk-version: '33'
-        
-    - name: Install build tools
-      run: |
-        yes | sdkmanager "platforms;android-33"
