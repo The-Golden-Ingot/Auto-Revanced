@@ -208,6 +208,7 @@ jobs:
             
             # Build optimized APK
             java -jar APKEditor.jar b -i "$temp_dir" -o "$output_path" \
+              --framework-path "$ANDROID_HOME/platforms/android-33/android.jar" \
               $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
             # Clean up
@@ -261,3 +262,12 @@ jobs:
       if: steps.version-check.outputs.updates_found > 0 || inputs.force == 'true'
       run: |
         # Existing build steps
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        sdk-version: '33'
+        
+    - name: Install build tools
+      run: |
+        yes | sdkmanager "platforms;android-33"
