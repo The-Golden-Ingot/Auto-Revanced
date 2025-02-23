@@ -53,6 +53,7 @@ jobs:
       packages: write  # Needed if uploading to packages
       actions: write  # Needed for workflow interactions
     
+    if: contains(fromJson(needs.prepare.outputs.matrix), app)
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -82,6 +83,7 @@ jobs:
         pip install pyyaml requests natsort
         sudo apt-get update
         sudo apt-get install -y xmlstarlet jq curl wget
+        sudo apt-get install -y jq
         
         # Create scripts directory if it doesn't exist
         mkdir -p scripts
@@ -196,7 +198,18 @@ jobs:
       run: |
         yes | sdkmanager "platforms;android-33" "build-tools;33.0.2"
 
+    - name: Check versions
+      id: version-check
+      run: |
+        python scripts/version_check.py --app ${{ matrix.app }}
+        if [ ... ]; then
+          echo "build_needed=true" >> $GITHUB_OUTPUT
+        else
+          echo "build_needed=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Process APKs
+      if: steps.version-check.outputs.build_needed == 'true'
       run: |
         echo "Processing APKs..."
         
@@ -212,7 +225,7 @@ jobs:
             # Handle split APKs
             if [[ "$apk" == *".apks" || "$apk" == *".xapk" ]]; then
               merged_path="dist/$(basename "${apk%.*}")_merged.apk"
-              java -jar APKEditor.jar m -i "$apk" -o "$merged_path" --legacy
+              python scripts/merger.py --input "$apk" --output "$merged_path"
               apk="$merged_path"
             fi
             
@@ -241,18 +254,6 @@ jobs:
         path: ${{ env.DIST_DIR }}/*.apk
         retention-days: ${{ steps.build-rules.outputs.retention_days }}
         
-    - name: Check versions
-      id: version-check
-      run: |
-        python scripts/version_check.py --app ${{ matrix.app }}
-        # Set updates_found based on versions.json existence and content
-        if [ -f "versions.json" ] && [ "$(cat versions.json | jq 'length')" -gt 0 ]; then
-          echo "updates_found=1" >> $GITHUB_OUTPUT
-        else
-          echo "updates_found=0" >> $GITHUB_OUTPUT
-        fi
-      continue-on-error: true
-
     - name: Create release
       env:
         GH_TOKEN: ${{ github.token }}

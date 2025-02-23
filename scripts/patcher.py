@@ -49,10 +49,7 @@ if __name__ == "__main__":
             app_config = yaml.safe_load(f)
         
         # Look for merged APKs in all subdirectories
-        apks = list(Path("downloads").rglob(f"{app_config['package']}*_merged.apk"))
-        if not apks:
-            # Try non-merged APKs in all subdirectories
-            apks = list(Path("downloads").rglob(f"{app_config['package']}*.apk"))
+        apks = list(Path("dist").rglob("*_optimized.apk"))
         
         if not apks:
             raise RuntimeError(f"No APK found for {args.app}")
