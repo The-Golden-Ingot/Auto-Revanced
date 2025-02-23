@@ -38,6 +38,25 @@ def filter_dpi_resources(decoded_dir, keep_dpis):
                     except Exception as e:
                         print(f"Warning: Failed to remove {dpi_dir}: {e}")
 
+def get_strip_architectures():
+    """Get architectures to strip from build rules"""
+    with open("configs/build_rules.yaml") as f:
+        build_rules = yaml.safe_load(f)
+    return build_rules.get('architectures', {}).get('strip', [])
+
+def build_apkeditor_command(input_dir, output_file):
+    """Construct APKEditor build command with architecture stripping"""
+    base_cmd = [
+        "java", "-jar", str(Path("APKEditor.jar").resolve()),
+        "b", "-i", str(input_dir), "-o", str(output_file)
+    ]
+    
+    # Add architecture stripping args
+    for arch in get_strip_architectures():
+        base_cmd.extend(["--remove-lib", arch])
+    
+    return base_cmd
+
 def optimize_apk(input_path, is_merged=False):
     """Optimize APK using APKEditor's capabilities"""
     input_path = Path(input_path).resolve()
@@ -64,17 +83,11 @@ def optimize_apk(input_path, is_merged=False):
             if keep_dpi:
                 filter_dpi_resources(temp_dir, keep_dpi)
         
-        # Build optimized APK
-        base_cmd = ["java", "-jar", str(Path("APKEditor.jar").resolve()), "b",
-                    "-i", str(temp_dir), "-o", str(output_file)]
+        # Replace architecture handling with new command builder
+        build_cmd = build_apkeditor_command(temp_dir, output_file)
         
-        # Add architecture optimization if configured
-        if 'architectures' in build_rules:
-            for arch in build_rules['architectures'].get('strip', []):
-                base_cmd.extend(["--remove-lib", arch])
-        
-        print(f"Running build command: {' '.join(base_cmd)}")
-        result = subprocess.run(base_cmd, capture_output=True, text=True)
+        print(f"Running build command: {' '.join(build_cmd)}")
+        result = subprocess.run(build_cmd, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"STDOUT: {result.stdout}")
             print(f"STDERR: {result.stderr}")

@@ -272,8 +272,10 @@ jobs:
 
             # Rebuild with resource checks
             echo "Rebuilding APK..."
+            strip_args=$(python -c "from scripts.merger import get_strip_architectures; print(' '.join(f'--remove-lib {arch}' for arch in get_strip_architectures()))")
+            
             if ! java -jar APKEditor.jar b -i "$temp_dir/decoded" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) 2>&1 | tee build.log; then
+              $strip_args 2>&1 | tee build.log; then
               echo "::error::Failed to rebuild $apk"
               echo "=== BUILD LOG ==="
               cat build.log
