@@ -258,6 +258,9 @@ jobs:
         for apk in dist/*_optimized.apk; do
           echo "Processing $apk..."
           
+          # Store original working directory
+          original_dir="$PWD"
+          
           # Create temporary directory for resource deduplication
           temp_dir="$apk.temp"
           mkdir -p "$temp_dir"
@@ -268,7 +271,6 @@ jobs:
           # Remove duplicate resource attributes
           for xml in "$temp_dir/res/font/"*.xml "$temp_dir/res/xml/settings_fragment.xml"; do
             if [ -f "$xml" ]; then
-              # Use awk to remove duplicate attributes while preserving the first occurrence
               awk '!seen[$0]++' "$xml" > "$xml.tmp" && mv "$xml.tmp" "$xml"
             fi
           done
@@ -276,12 +278,12 @@ jobs:
           # Repack APK
           cd "$temp_dir"
           zip -qr "../$(basename "$apk")" .
-          cd ..
+          cd "$original_dir"  # Restore original directory
           
           # Clean up
           rm -rf "$temp_dir"
           
-          # Apply patches
+          # Apply patches from project root
           if ! python scripts/patcher.py --app ${{ matrix.app }} --version "$app_version" --patch-version "$patch_version"; then
             echo "::warning::Patching failed for $apk, but continuing..."
           fi
