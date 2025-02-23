@@ -280,10 +280,31 @@ jobs:
             continue
           fi
           
-          # Remove duplicate resource attributes
-          for xml in "$temp_dir/res/font/"*.xml "$temp_dir/res/xml/settings_fragment.xml"; do
-            if [ -f "$xml" ]; then
-              awk '!seen[$0]++' "$xml" > "$xml.tmp" && mv "$xml.tmp" "$xml"
+          # Enhanced XML deduplication
+          echo "Deduplicating resource files..."
+          for xml_file in "$temp_dir"/res/{font/google_sans*.xml,font/youtube*.xml,xml/settings_fragment.xml}; do
+            if [ -f "$xml_file" ]; then
+              echo "Processing $xml_file"
+              # Create temporary file for processing
+              tmp_file="${xml_file}.tmp"
+              
+              # Use xmlstarlet to format and normalize the XML first
+              if ! xmlstarlet format --recover "$xml_file" > "$tmp_file" 2>/dev/null; then
+                # If xmlstarlet fails, try simple line-based deduplication
+                awk '!seen[$0]++' "$xml_file" > "$tmp_file"
+              fi
+              
+              # Remove duplicate attributes using sed
+              sed -i.bak -E '
+                # Remove duplicate android:* attributes, keeping the first occurrence
+                s/android:[^= ]+="[^"]*"[[:space:]]+android:[^= ]+="[^"]*"/\1/g
+                # Remove duplicate app:* attributes
+                s/app:[^= ]+="[^"]*"[[:space:]]+app:[^= ]+="[^"]*"/\1/g
+              ' "$tmp_file"
+              
+              # Replace original with cleaned version
+              mv "$tmp_file" "$xml_file"
+              rm -f "${xml_file}.bak"
             fi
           done
           
