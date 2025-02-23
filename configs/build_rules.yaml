@@ -6,4 +6,4 @@ global:
     strip: [x86, x86_64]
   dpi:
     keep: [480dpi, 320dpi]
-  version_check_interval: 86400 # 24h in seconds 
+  version_check_interval: 86400 # 24h in seconds

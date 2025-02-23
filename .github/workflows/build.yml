@@ -210,8 +210,7 @@ jobs:
             
             # Build optimized APK from decoded directory (point to base subdirectory)
             java -jar APKEditor.jar b -i "$temp_dir/base" -o "$output_path" \
-              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml) \
-              $(awk '/dpi/{for(i=1;i<=NF;i++) if($i=="--keep-dpi") printf "--keep-dpi %s ", $(i+1)}' configs/build_rules.yaml)
+              $(awk '/architectures/{for(i=1;i<=NF;i++) if($i=="--remove-lib") printf "--remove-lib %s ", $(i+1)}' configs/build_rules.yaml)
             
             # Clean up temp directory
             rm -rf "$temp_dir"
