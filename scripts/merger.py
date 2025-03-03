@@ -52,7 +52,8 @@ def build_apkeditor_command(input_dir, output_file):
     ]
     
     # Add architecture stripping args
-    for arch in get_strip_architectures():
+    strip_archs = get_strip_architectures()  # Ensure we get the architectures to strip
+    for arch in strip_archs:
         base_cmd.extend(["--remove-lib", arch])
     
     return base_cmd
@@ -78,6 +79,7 @@ def optimize_apk(input_path, is_merged=False):
             raise RuntimeError(f"APK decode failed: {result.stderr}")
         
         # Filter DPI resources if configured
+        build_rules = load_build_rules()  # Load build rules here to access architectures
         if 'dpi' in build_rules:
             keep_dpi = build_rules['dpi'].get('keep', [])
             if keep_dpi:
