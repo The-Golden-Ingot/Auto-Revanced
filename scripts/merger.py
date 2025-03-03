@@ -63,6 +63,9 @@ def optimize_apk(input_path, is_merged=False):
     input_path = Path(input_path).resolve()
     output_file = input_path.parent / f"{input_path.stem}_optimized.apk"
     
+    # Load build rules
+    build_rules = load_build_rules()
+
     # Create unique temp directory using system temp
     temp_dir = Path(tempfile.mkdtemp(prefix="apkeditor_"))
     
