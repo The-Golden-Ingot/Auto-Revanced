@@ -83,7 +83,10 @@ def optimize_apk(input_path, is_merged=False):
             keep_dpi = build_rules['dpi'].get('keep', [])
             if keep_dpi:
                 filter_dpi_resources(temp_dir, keep_dpi)
-        
+
+        # Validate XML files
+        validate_xml_files(temp_dir)
+
         # Replace architecture handling with new command builder
         build_cmd = build_apkeditor_command(temp_dir, output_file)
         
@@ -98,6 +101,18 @@ def optimize_apk(input_path, is_merged=False):
     finally:
         # Always clean up temp directory
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+def validate_xml_files(decoded_dir):
+    """Validate XML files in the decoded directory"""
+    for xml_file in Path(decoded_dir).rglob("*.xml"):
+        try:
+            # Use xmllint to validate XML
+            result = subprocess.run(["xmllint", "--noout", str(xml_file)], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"XML validation failed for {xml_file}: {result.stderr}")
+                raise RuntimeError(f"Invalid XML: {xml_file}")
+        except Exception as e:
+            print(f"Error validating {xml_file}: {e}")
 
 def merge_splits(input_path):
     """Merge split APKs and optimize the result"""
