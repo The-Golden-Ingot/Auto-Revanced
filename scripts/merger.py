@@ -14,6 +14,7 @@ def filter_dpi_resources(decoded_dir, keep_dpis):
     """Filter DPI-specific resources, keeping only specified DPIs"""
     res_dir = Path(decoded_dir) / "res"
     if not res_dir.exists():
+        print(f"Resource directory {res_dir} does not exist.")
         return
         
     # Get all resource directories
@@ -33,10 +34,10 @@ def filter_dpi_resources(decoded_dir, keep_dpis):
                 if not any(keep_dpi in dpi_dir.name for keep_dpi in keep_dpis):
                     print(f"Removing {dpi_dir.relative_to(res_dir)}")
                     try:
-                        import shutil
                         shutil.rmtree(dpi_dir)
+                        print(f"Successfully removed {dpi_dir.relative_to(res_dir)}")
                     except Exception as e:
-                        print(f"Warning: Failed to remove {dpi_dir}: {e}")
+                        print(f"Error removing {dpi_dir.relative_to(res_dir)}: {e}")
 
 def get_strip_architectures():
     """Get architectures to strip from build rules"""
